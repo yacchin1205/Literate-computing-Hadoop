@@ -1,6 +1,12 @@
 - name: create_journalnode_data_dir
   sudo: yes
   file: path={{ dfs_journalnode_edits_dir }} state=directory owner=hdfs group=hadoop mode=700
+
+- name: fix_init_scripts
+  become: yes
+  lineinfile: dest=/usr/hdp/{{ hdp_version }}/hadoop-hdfs/etc/rc.d/init.d/{{ item }} insertafter='^\.\s+\/lib\/lsb\/init-functions' line='. /etc/default/{{ item }}'
+  with_items:
+  - hadoop-hdfs-journalnode
   
 - name: create_symbolic_link_to/etc/init.d
   sudo: yes
@@ -14,7 +20,7 @@
 
 - name: copy_journalnode_defaults_file
   sudo: yes
-  template: src=default_{{ item }}.j2 dest=/etc/sysconfig/{{ item }} mode=755 owner=hdfs group=hdfs
+  template: src=default_{{ item }}.j2 dest=/etc/default/{{ item }} mode=755 owner=hdfs group=hdfs
   with_items:
   - hadoop-hdfs-journalnode
 
