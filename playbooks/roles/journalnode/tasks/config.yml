@@ -4,12 +4,6 @@
   
 - name: create_symbolic_link_to/etc/init.d
   sudo: yes
-  file: path=/etc/init.d/{{ item }} state=link src=/usr/hdp/{{ hdp_version }}/etc/rc.d/init.d/{{ item }}
-  with_items:
-  - hadoop-hdfs-journalnode
-  
-- name: create_symbolic_link_to/etc/init.d
-  sudo: yes
   file: path=/etc/init.d/{{ item }} state=link src=/usr/hdp/{{ hdp_version }}/hadoop-hdfs/etc/rc.d/init.d/{{ item }}
   with_items:
   - hadoop-hdfs-journalnode
