@@ -27,14 +27,18 @@
   sudo: yes
   template: src={{ item }}.j2 dest=/etc/default/{{ item }} owner=hbase group=hadoop mode=755
   with_items:
-  - hbase
+  - hbase-master
 
 - name: fix_init_scripts
   become: yes
   lineinfile: dest=/usr/hdp/{{ hdp_version }}/hbase/etc/rc.d/init.d/{{ item }} insertafter='^\.\s+\/lib\/lsb\/init-functions' line='. /etc/default/{{ item }}'
   with_items:
   - hbase-master
-  
+
+- name: remove_template_variable_in_init_scripts
+  become: yes
+  lineinfile: dest=/usr/hdp/{{ hdp_version }}/hbase/etc/rc.d/init.d/hbase-master regexp='^export\s+HBASE_HOME=' state=absent
+
 - name: create_symbolic_link_to/etc/init.d
   sudo: yes
   file: path=/etc/init.d/{{ item }} state=link src=/usr/hdp/{{ hdp_version }}/hbase/etc/rc.d/init.d/{{ item }}
