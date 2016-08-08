@@ -3,7 +3,7 @@
   become: yes
   
 - name: Clone repository
-  git: repo=https://github.com/apache/tez.git dest={{ swimlane_install_path }}/apache-tez-{{ swimlane_tez_version }}-src version=release-{{ swimlane_tez_version }}
+  git: repo=https://github.com/apache/tez.git dest={{ swimlane_install_path }}/apache-tez-{{ swimlane_tez_version }}-src version=rel/release-{{ swimlane_tez_version }}
   become: yes
 
 - name: install_httpd
