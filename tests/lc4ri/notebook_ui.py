@@ -330,7 +330,8 @@ def check_yarn_spark(results, context, records):
     apps = get('/ws/v1/cluster/apps?applicationTypes=SPARK')['apps']['app']
     assert len(apps) == 1, apps
     app = apps[0]
-    assert app['name'] == 'test-pyspark' and app['state'] == 'FINISHED' and app['finalStatus'] == 'SUCCEEDED', app
+    # YARN records the submission filename; the driver sets its Spark name later.
+    assert app['name'] == 'SimpleApp.py' and app['state'] == 'FINISHED' and app['finalStatus'] == 'SUCCEEDED', app
     # The completed application must have actually allocated YARN containers.
     assert app['memorySeconds'] > 0 and app['vcoreSeconds'] > 0, app
     logs = remote(shlex.join(['yarn', 'logs', '-applicationId', app['id']]))
