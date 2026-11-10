@@ -165,6 +165,11 @@ pipelining = True
                 assert document != key + '-template.ipynb'
                 assert page.evaluate('() => Jupyter.notebook.get_cells().map(c => c.get_text())') == [source(c) for c in original['cells']]
                 template_page.close()
+                page.locator('#menubar .dropdown-toggle').filter(has_text=re.compile(r'^Cell$')).click()
+                page.locator('#all_outputs > a').hover()
+                page.locator('#clear_all_output > a').click()
+                assert page.evaluate("() => Jupyter.notebook.get_cells().filter(c => c.cell_type === 'code').every(c => c.output_area.outputs.length === 0)")
+                records.append(dict(notebook=key, action='Cell > All Output > Clear on working copy'))
                 controls = operations(page, key, original, records, timeout=1200000)
                 expected, executed = [], []
                 for index, cell in enumerate(original['cells']):

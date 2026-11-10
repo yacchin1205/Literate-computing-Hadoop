@@ -34,7 +34,7 @@ qemu_boot_guests 'nn1:172.29.88.10:3072:20G' 'nn2:172.29.88.11:3072:20G' 'dn1:17
 # Supply D12's documented OS/network/storage prerequisites, never install Hadoop here.
 for address in "${qemu_addresses[@]}"; do
   ssh -F "$private_dir/ssh_config" "ansible@$address" \
-    'sudo apt-get update && sudo apt-get install -y python3 acl rsyslog tree lsb-release wget; sudo mkdir -p /hadoop/data /hadoop/data01; sudo chmod 0755 /hadoop /hadoop/data /hadoop/data01; timedatectl status; cat /etc/hosts'
+    'set -e; sudo apt-get update && sudo apt-get install -y python3 acl rsyslog tree lsb-release wget; sudo mkdir -p /hadoop/data /hadoop/data01; sudo chmod 0755 /hadoop /hadoop/data /hadoop/data01; timedatectl status; cat /etc/hosts'
 done
 # A byte-identical local download mirror avoids fetching the 377 MiB tarball per VM.
 package_cache="${HDFS_E2E_PACKAGE_CACHE:-$private_dir/packages}"
@@ -43,7 +43,7 @@ python3 - "$package_cache" "$result_dir" <<'PY'
 import hashlib, json, pathlib, subprocess, sys, yaml
 folder, results = map(pathlib.Path, sys.argv[1:])
 packages = [
- ('hadoop', 'https://archive.apache.org/dist/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz', 'hadoop'),
+ ('hadoop', 'https://repo.huaweicloud.com/apache/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz', 'hadoop'),
  ('zookeeper', 'https://archive.apache.org/dist/zookeeper/zookeeper-3.6.2/apache-zookeeper-3.6.2-bin.tar.gz', 'zookeeper_server'),
  ('jsvc', 'https://archive.apache.org/dist/commons/daemon/source/commons-daemon-1.2.4-src.tar.gz', 'hadoop'),
 ]
@@ -66,7 +66,8 @@ PY
 python3 -m http.server 18555 --bind "$gateway" --directory "$package_cache" > "$result_dir/mirror.log" 2>&1 &
 mirror_pid=$!
 # The original D12 clone cell will clone this exact checked-out fork revision.
-git clone --bare "$PWD" "$private_dir/source.git"
+git clone --no-hardlinks --bare "$PWD" "$private_dir/source.git"
+chmod -R a+rX "$private_dir/source.git"
 docker build -t hdfs-lc4ri-controller tests/lc4ri/controller
 export LC4RI_TEST_TOKEN
 LC4RI_TEST_TOKEN=$(python3 -c 'import secrets; print(secrets.token_hex(24))')

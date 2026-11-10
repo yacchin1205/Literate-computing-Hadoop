@@ -1,7 +1,7 @@
 # Original Notebook HDFS construction through LC4RI
 
 CI acts as the operator of the existing notebooks. It uses LC4RI's visible
-Make a Copy, editor, Shift+Enter, Freeze/Unfreeze and Save controls. The original
+Make a Copy, editor, Clear Output, Shift+Enter, Freeze/Unfreeze and Save controls. The original
 cell sources are compared before copying and after execution; every working-copy
 edit has a reason, before/after text, and an operation record. No alternative
 installation notebook, generated deployment script, or direct Ansible installation
@@ -29,8 +29,12 @@ mount-point directories. Java, cgroups packages, ZooKeeper and Hadoop are instal
 by D12's original Ansible cells. The physical/KVM/GCE provisioning notebooks,
 D90's private policy, YARN/HBase/Hive/Spark and migration are outside this scope.
 
-The package mirror contains byte-identical Apache Archive tarballs, verified by
-the repository SHA-512 values; it is an input/download service. The Ubuntu cloud
+Working copies have historical outputs cleared through the UI before execution.
+The package mirror contains byte-identical historical Apache tarballs, verified by
+the repository SHA-512 values; it is an input/download service. The large Hadoop
+archive is retrieved from Huawei Cloud's Apache mirror because Apache Archive
+was rate-limited to about 120 KiB/s in the first Actions run. The manifest records
+the retrieval URL, and the original repository SHA-512 must match. The Ubuntu cloud
 image and LC4RI image are pinned by hash/digest. Working-copy source edits are
 restricted to documented inputs: archive URL and deployment repository/revision.
 The generated topology remains unchanged when selecting JVM memory budgets.
