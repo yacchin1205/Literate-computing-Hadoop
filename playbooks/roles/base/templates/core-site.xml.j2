@@ -28,6 +28,15 @@
   <name>hadoop.security.authorization</name>
   <value>true</value>
 </property>
+<property>
+  <name>hadoop.http.authentication.type</name><value>kerberos</value>
+</property>
+<property>
+  <name>hadoop.http.authentication.kerberos.principal</name><value>HTTP/_HOST@{{ kerberos_realm }}</value>
+</property>
+<property>
+  <name>hadoop.http.authentication.kerberos.keytab</name><value>/etc/hadoop/conf/http.keytab</value>
+</property>
 {% endif %}
 
 <property>

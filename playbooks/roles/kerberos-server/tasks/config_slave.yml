@@ -1,8 +1,8 @@
 - name: Prepare keytab for admin
   become: yes
-  copy: src="{{ kerberos_admin_keytab_file }}" dest="{{ kerberos_admin_keytab }}" owner={{ ansible_ssh_user }} group={{ ansible_ssh_user }}
+  copy: src="{{ kerberos_admin_keytab_file }}" dest="{{ kerberos_admin_keytab }}" owner={{ ansible_user }} group={{ ansible_user }} mode=0600
 
-- include: host_principal.yml
+- import_tasks: host_principal.yml
 
 - name: Modify kpropd.acl
   become: yes
@@ -18,7 +18,7 @@
   command: kadmin.local -q "getprinc {{ kerberos_admin_principal }}"
   register: localadmin_principals
   changed_when: localadmin_principals.rc != 0 or localadmin_principals.stderr.find('Principal does not exist') != -1
-  ignore_errors: yes
+  failed_when: false
 
 - name: Propagate Master DB
   become: yes

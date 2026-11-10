@@ -21,3 +21,10 @@
 
 
 
+
+- name: Acquire credentials for interactive service administration
+  become: yes
+  become_user: "{{ item }}"
+  command: "kinit -kt /etc/hadoop/conf/{{ item }}.keytab {{ item }}/{{ ansible_fqdn }}@{{ kerberos_realm }}"
+  loop: [hdfs, yarn, mapred]
+  changed_when: false

@@ -13,3 +13,11 @@
   shell: ktutil </root/merge-keytabs.ktutil
   when: kerberos_princ_dest_keytab_stat.stat.exists == False
   notify: "Modify keytab permissions for {{ kerberos_princ_keytab_owner }}"
+
+- name: Set service keytab permissions before authentication
+  become: yes
+  file:
+    path: "{{ kerberos_princ_dest_keytab }}"
+    owner: "{{ kerberos_princ_keytab_owner }}"
+    group: hadoop
+    mode: '0400'

@@ -1,0 +1,16 @@
+- hosts: hadoop_client
+  become: yes
+  roles:
+    - role: kerberos-principal
+      user_kerberos_princ_name: "{{ ansible_user }}@{{ kerberos_realm }}"
+      user_kerberos_princ_keytab_path: "/home/{{ ansible_user }}/.hadoop.keytab"
+  tasks:
+    - name: Protect client keytab
+      file:
+        path: "/home/{{ ansible_user }}/.hadoop.keytab"
+        owner: "{{ ansible_user }}"
+        mode: '0400'
+    - name: Acquire Hadoop client credentials
+      become_user: "{{ ansible_user }}"
+      command: "kinit -kt /home/{{ ansible_user }}/.hadoop.keytab {{ ansible_user }}@{{ kerberos_realm }}"
+      changed_when: false
