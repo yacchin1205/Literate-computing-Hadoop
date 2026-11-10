@@ -299,7 +299,7 @@ def prepare_browser_credentials():
 def service_json(url):
     if SECURE:
         # Disposable self-signed test certificates are provisioned as prerequisites.
-        return json.loads(subprocess.check_output(['curl', '--silent', '--show-error', '--fail',
+        return json.loads(subprocess.check_output(['/usr/bin/curl', '--silent', '--show-error', '--fail',
             '--insecure', '--negotiate', '-u', ':', url], text=True, timeout=60))
     with urllib.request.urlopen(url, timeout=30) as response:
         return json.load(response)

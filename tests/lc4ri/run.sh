@@ -32,6 +32,7 @@ cleanup() {
 trap cleanup EXIT
 qemu_boot_guests 'nn1:172.29.88.10:4096:20G' 'nn2:172.29.88.11:4096:20G' 'dn1:172.29.88.12:3072:20G'
 if [[ "${HADOOP_SECURITY_MODE:-simple}" == kerberos ]]; then
+  python3 -c "import subprocess; version=subprocess.check_output(['/usr/bin/curl', '--version'], text=True); print(version); assert 'SPNEGO' in version"
   export KERBEROS_TEST_PASSWORD KRB5_CONFIG KRB5CCNAME
   KERBEROS_TEST_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
   KRB5_CONFIG="$private_dir/krb5-browser.conf"
