@@ -115,6 +115,7 @@
 </property>
 {% endif %}
 
+{% if hadoop_namenode_servers | length > 1 %}
 <property>
   <name>dfs.nameservices</name>
   <value>{{ dfs_nameservices }}</value>
@@ -139,6 +140,19 @@
   <value>{{ host }}:{{ namenode_http_port }}</value>
 </property>
 {% endfor %}
+{% endif %}
+
+{% else %}
+<property>
+  <name>dfs.namenode.rpc-address</name>
+  <value>{{ hadoop_namenode_servers[0] }}:{{ namenode_rpc_port }}</value>
+</property>
+{% if kerberos_realm is not defined %}
+<property>
+  <name>dfs.namenode.http-address</name>
+  <value>{{ hadoop_namenode_servers[0] }}:{{ namenode_http_port }}</value>
+</property>
+{% endif %}
 {% endif %}
 
 <property>
@@ -178,10 +192,12 @@
 </property>
 {% endif %}
 
+{% if hadoop_namenode_servers | length > 1 %}
 <property>
-  <name>dfs.client.failover.proxy.provider.hdfs-cluster</name>
+  <name>dfs.client.failover.proxy.provider.{{ dfs_nameservices }}</name>
   <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
 </property>
+{% endif %}
 
 <property>
   <name>dfs.namenode.safemode.extension</name>
@@ -218,6 +234,7 @@
   <value>{{ dfs_namenode_checkpoint_txns }}</value>
 </property>
 
+{% if hadoop_namenode_servers | length > 1 %}
 <property>
   <name>dfs.ha.automatic-failover.enabled</name>
   <value>true</value>
@@ -238,6 +255,8 @@
   <name>dfs.ha.zkfc.port</name>
   <value>8019</value>
 </property>
+
+{% endif %}
 
 <property>
   <name>dfs.webhdfs.enabled</name>

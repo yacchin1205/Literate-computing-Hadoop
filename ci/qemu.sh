@@ -48,6 +48,12 @@ inventory = {'all': {'children': {'hadoop_zookeeperserver': {'hosts': {
         'ansible_ssh_private_key_file': str(s / 'id_ed25519'),
         'ansible_ssh_common_args': '-o StrictHostKeyChecking=yes -o UserKnownHostsFile=' + str(s / 'known_hosts')}
 }}}}}
+if os.environ.get('CI_SCENARIO', 'zookeeper') == 'hdfs':
+    host = inventory['all']['children']['hadoop_zookeeperserver']['hosts']['notebook-ci']
+    inventory['all']['children'] = {
+        group: {'hosts': {'notebook-ci': host}}
+        for group in ['hadoop_all', 'hadoop_namenode', 'hadoop_namenode_primary', 'hadoop_slavenode', 'hadoop_client']
+    }
 (s / 'inventory.yml').write_text(yaml.safe_dump(inventory))
 PY
     cloud-localds "$CI_STATE/seed.img" "$CI_STATE/user-data" "$CI_STATE/meta-data"
@@ -66,13 +72,17 @@ PY
     done
     "$ready" || { echo 'Guest SSH did not become ready' >&2; exit 1; }
     ssh "${ssh_options[@]}" ansible@127.0.0.1 'sudo cloud-init status --wait'
-    ssh "${ssh_options[@]}" ansible@127.0.0.1 'sudo apt-get update && sudo apt-get install -y python3'
+    ssh "${ssh_options[@]}" ansible@127.0.0.1 'sudo apt-get update && sudo apt-get install -y python3 acl'
     ;;
   collect)
     if test -f "$CI_STATE/id_ed25519"; then
       timeout 30 ssh "${ssh_options[@]}" ansible@127.0.0.1 \
-        'sudo journalctl -u zookeeper-server --no-pager; sudo systemctl status zookeeper-server --no-pager; sudo tail -n 100 /var/log/cloud-init-output.log' \
+        'sudo journalctl -u zookeeper-server -u hadoop-hdfs-namenode -u hadoop-hdfs-datanode --no-pager; sudo systemctl status zookeeper-server hadoop-hdfs-namenode hadoop-hdfs-datanode --no-pager; sudo tail -n 100 /var/log/cloud-init-output.log' \
         > "$CI_ARTIFACTS/guest.log" 2>&1 || true
+      if test "${CI_SCENARIO:-zookeeper}" = hdfs; then
+        timeout 30 ssh "${ssh_options[@]}" ansible@127.0.0.1 \
+          'sudo tail -n 200 /var/log/hadoop-hdfs/*.log' > "$CI_ARTIFACTS/hdfs-daemons.log" 2>&1 || true
+      fi
     fi
     ;;
   stop)

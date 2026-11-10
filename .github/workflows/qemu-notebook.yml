@@ -10,10 +10,16 @@ concurrency:
   group: qemu-notebook-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  zookeeper-baseline:
+  baseline:
+    name: ${{ matrix.scenario }} baseline
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [zookeeper, hdfs]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
+      CI_SCENARIO: ${{ matrix.scenario }}
       CI_STATE: ${{ github.workspace }}/.ci-state
       CI_ARTIFACTS: ${{ github.workspace }}/.ci-artifacts
       ANSIBLE_LOG_PATH: ${{ github.workspace }}/.ci-artifacts/ansible.log
@@ -28,11 +34,13 @@ jobs:
       - name: Install controller and QEMU tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils cloud-image-utils
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils
           python -m pip install -r ci/requirements.txt
           python -m ipykernel install --user --name python3
           mkdir -p "$CI_ARTIFACTS"
           python -m pip freeze > "$CI_ARTIFACTS/controller-packages.txt"
+      - name: Validate HDFS configuration branches
+        run: python -m unittest discover -s ci/tests -v
       - name: Boot disposable Ubuntu guest
         run: bash ci/qemu.sh start
       - name: Execute baseline notebook
@@ -47,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: zookeeper-3.6.2-baseline
+          name: ${{ matrix.scenario }}-baseline
           path: .ci-artifacts/
           if-no-files-found: warn
           include-hidden-files: true

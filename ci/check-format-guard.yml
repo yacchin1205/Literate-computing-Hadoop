@@ -1,0 +1,4 @@
+# Exercise the real format guard without reinstalling software or changing config.
+- hosts: hadoop_namenode_primary
+  tasks:
+    - ansible.builtin.import_tasks: ../playbooks/roles/namenode_format/tasks/config.yml

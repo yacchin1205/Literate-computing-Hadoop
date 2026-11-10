@@ -32,7 +32,11 @@
 
 <property>
   <name>fs.defaultFS</name>
+{% if hadoop_namenode_servers | length > 1 %}
   <value>hdfs://{{ dfs_nameservices }}</value>
+{% else %}
+  <value>hdfs://{{ hadoop_namenode_servers[0] }}:{{ namenode_rpc_port }}</value>
+{% endif %}
 </property>
 
 <property>

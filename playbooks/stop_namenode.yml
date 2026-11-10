@@ -16,6 +16,7 @@
   tasks:
     - name: stop_hadoop-hdfs-zkfc
       service: name=hadoop-hdfs-zkfc state=stopped
+      when: hadoop_namenode_servers|length > 1
   
     - name: stop_hadoop-hdfs-namenode
       service: name=hadoop-hdfs-namenode state=stopped

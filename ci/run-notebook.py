@@ -7,7 +7,10 @@ import nbformat
 from nbclient import NotebookClient
 
 root = Path(__file__).resolve().parents[1]
-source = root / 'ci/notebooks/zookeeper.ipynb'
+scenario = os.environ.get('CI_SCENARIO', 'zookeeper')
+if scenario not in {'zookeeper', 'hdfs'}:
+    raise ValueError(f'Unknown CI scenario: {scenario}')
+source = root / f'ci/notebooks/{scenario}.ipynb'
 output = Path(os.environ['CI_ARTIFACTS']) / source.name
 notebook = nbformat.read(source, as_version=4)
 client = NotebookClient(

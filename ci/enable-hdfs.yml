@@ -1,0 +1,10 @@
+- hosts: hadoop_all
+  become: yes
+  tasks:
+    - name: Enable HDFS services across guest reboots
+      ansible.builtin.service:
+        name: '{{ item }}'
+        enabled: yes
+      loop:
+        - hadoop-hdfs-namenode
+        - hadoop-hdfs-datanode
