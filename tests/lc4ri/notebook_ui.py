@@ -280,9 +280,32 @@ def check_hdfs(results, context, records):
     address = ADDRESSES.get(address, address)
     page = context.new_page()
     page.goto('http://' + address + ':50070/dfshealth.html#tab-overview')
-    page.wait_for_function("document.body.innerText.includes('Overview') && document.body.innerText.includes('Datanodes')", timeout=60000)
-    page.screenshot(path=str(results / 'namenode-ui.png'), full_page=True)
+    check_namenode_ui(page, results)
     page.close()
+
+
+def check_namenode_ui(page, results):
+    # Navigation is available before JMX/Dust render the actual service data.
+    overview = page.locator('#tab-overview')
+    expect(overview).to_contain_text('Cluster ID:', timeout=60000)
+    expect(overview).to_contain_text('3.2.2')
+    expect(overview).to_contain_text('(active)')
+    live_row = overview.locator('tr').filter(has=page.locator('th a').filter(has_text=re.compile(r'^Live Nodes$')))
+    expect(live_row.locator('td')).to_have_text(re.compile(r'^3\s+\('))
+    overview_text = overview.inner_text()
+    page.screenshot(path=str(results / 'namenode-ui.png'), full_page=True)
+    page.locator('#ui-tabs a[href="#tab-datanode"]').click()
+    rows = page.locator('#table-datanodes tbody tr')
+    expect(rows).to_have_count(3, timeout=60000)
+    expect(page.locator('#table-datanodes tbody tr.danger')).to_have_count(0)
+    for row in rows.all():
+        expect(row).to_contain_text('3.2.2')
+    nodes_text = rows.all_inner_texts()
+    for address in ADDRESSES.values():
+        assert any(address in text for text in nodes_text), (address, nodes_text)
+    page.screenshot(path=str(results / 'datanodes-ui.png'), full_page=True)
+    (results / 'namenode-ui.json').write_text(json.dumps(dict(
+        overview=overview_text, datanode_rows=nodes_text), indent=2) + '\n')
 
 
 if __name__ == '__main__':

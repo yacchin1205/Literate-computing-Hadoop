@@ -4,7 +4,7 @@ USER root
 RUN python3 -m pip uninstall -y ansible \
  && python3 -m pip install --no-cache-dir ansible==9.13.0 ansible-core==2.16.14 \
       jupyter-server==1.24.0 netaddr==1.3.0 pandas==2.2.3 zk-shell==1.3.4 \
- && apt-get update && apt-get install -y --no-install-recommends tree \
+ && command -v tree \
  && mkdir -p /home/jovyan/work /home/jovyan/.ssh \
  && chown -R 1000:100 /home/jovyan/work /home/jovyan/.ssh
 USER $NB_USER
