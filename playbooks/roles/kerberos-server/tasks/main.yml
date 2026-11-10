@@ -1,6 +1,6 @@
 - name: Install kerberos
   become: yes
-  apt: name=krb5-kdc,krb5-admin-server,krb5-config,krb5-kpropd state=latest
+  apt: name=krb5-kdc,krb5-admin-server,krb5-config,krb5-kpropd,krb5-user state=latest
 
 - name: Modify krb5.conf
   become: yes

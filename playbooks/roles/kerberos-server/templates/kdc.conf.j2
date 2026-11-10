@@ -4,7 +4,8 @@
 
 [realms]
  {{ kerberos_realm }} = {
-  #master_key_type = aes256-cts
+  database_name = /var/lib/krb5kdc/principal
+  key_stash_file = /etc/krb5kdc/.k5.{{ kerberos_realm }}
   acl_file = /etc/krb5kdc/kadm5.acl
   dict_file = /usr/share/dict/words
   admin_keytab = /var/lib/krb5kdc/kadm5.keytab
