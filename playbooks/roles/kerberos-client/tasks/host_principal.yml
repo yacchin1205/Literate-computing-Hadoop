@@ -14,7 +14,7 @@
   command: klist -k /etc/krb5.keytab
   register: host_keytabs
   changed_when: host_keytabs.rc != 0 or host_keytabs.stdout.find('host/' + ansible_fqdn) == -1
-  ignore_errors: yes
+  failed_when: false
 
 - name: Prepare keytabs
   become: yes

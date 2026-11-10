@@ -10,9 +10,15 @@ concurrency:
 jobs:
   original-hdfs:
     if: github.repository == 'yacchin1205/Literate-computing-Hadoop'
+    name: Original notebooks (${{ matrix.security }})
+    strategy:
+      fail-fast: false
+      matrix:
+        security: [simple, kerberos]
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     env:
+      HADOOP_SECURITY_MODE: ${{ matrix.security }}
       HDFS_E2E_PACKAGE_CACHE: ${{ github.workspace }}/.hdfs-package-cache
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +36,7 @@ jobs:
           python -m pip install -r tests/lc4ri/requirements.txt
           python -m playwright install --with-deps chromium
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils curl krb5-user openjdk-11-jre-headless
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
       - uses: actions/cache/restore@v4
         id: packages
@@ -57,14 +63,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: original-hdfs-ui
+          name: original-hdfs-ui-${{ matrix.security }}
           path: test-results/original-hdfs/
           retention-days: 14
       - name: Upload notebook results without browser trace or video
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: original-notebook-results
+          name: original-notebook-results-${{ matrix.security }}
           path: |
             test-results/original-hdfs/*.json
             test-results/original-hdfs/*-working.ipynb

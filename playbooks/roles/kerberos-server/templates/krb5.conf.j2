@@ -7,6 +7,9 @@
  default_realm = {{ kerberos_realm }}
  dns_lookup_realm = false
  dns_lookup_kdc = false
+ rdns = false
+ dns_canonicalize_hostname = false
+ default_ccache_name = FILE:/tmp/krb5cc_%{uid}
  ticket_lifetime = 30d
  renew_lifetime = 30d
  forwardable = true

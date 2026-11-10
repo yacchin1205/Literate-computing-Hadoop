@@ -1,6 +1,16 @@
 - name: Install kerberos
   become: yes
-  apt: name=krb5-kdc,krb5-admin-server,krb5-config,krb5-kpropd state=latest
+  apt: name=krb5-kdc,krb5-admin-server,krb5-config,krb5-kpropd,krb5-user,cron state=latest
+
+- name: Disable slave propagation service on the KDC master
+  become: yes
+  service: name=krb5-kpropd state=stopped enabled=no
+  when: kdc_role == 'master'
+
+- name: Disable admin service on a KDC slave
+  become: yes
+  service: name=krb5-admin-server state=stopped enabled=no
+  when: kdc_role == 'slave'
 
 - name: Modify krb5.conf
   become: yes
@@ -11,7 +21,7 @@
 
 - name: Modify kdc.conf
   become: yes
-  template: src=kdc.conf.j2 dest=/var/lib/krb5kdc/kdc.conf
+  template: src=kdc.conf.j2 dest=/etc/krb5kdc/kdc.conf
   notify:
     - Restart kdc
     - Restart kadmin
@@ -24,10 +34,10 @@
     - Restart kadmin
   when: kdc_role == 'master'
 
-- include: config_master.yml
+- import_tasks: config_master.yml
   when: kdc_role == 'master'
   
-- include: config_slave.yml
+- import_tasks: config_slave.yml
   when: kdc_role == 'slave'
 
 - name: Prepare script
@@ -38,4 +48,4 @@
   become: yes
   cron: name="sync kdc" minute=10 hour=3 user=root
            job="kdb5_util dump /var/lib/krb5kdc/replica_datatrans; /usr/local/bin/kprop_all {{ kerberos_kdc_slaves | join(' ') }}"
-  when: kdc_role == 'master'
+  when: kdc_role == 'master' and kerberos_kdc_slaves | length > 0

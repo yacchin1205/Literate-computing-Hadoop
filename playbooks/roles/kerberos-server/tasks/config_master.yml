@@ -1,6 +1,7 @@
 - name: Create master db
   become: yes
   command: creates=/var/lib/krb5kdc/principal kdb5_util create -s -P {{ kerberos_master_key_password }}
+  no_log: true
 
 - name: Check admin principal
   become: yes
@@ -26,7 +27,7 @@
   command: klist -k {{ kerberos_admin_keytab }}
   register: admin_keytabs
   changed_when: admin_keytabs.rc != 0 or admin_keytabs.stdout.find(kerberos_admin_principal) == -1
-  ignore_errors: yes
+  failed_when: false
 
 - name: Prepare admin keytab
   become: yes
@@ -35,9 +36,9 @@
 
 - name: Change owner of admin keytab
   become: yes
-  file: path={{ kerberos_admin_keytab }} owner={{ ansible_ssh_user }} group={{ ansible_ssh_user }} state=file
+  file: path={{ kerberos_admin_keytab }} owner={{ ansible_user }} group={{ ansible_user }} state=file
 
-- include: host_principal.yml
+- import_tasks: host_principal.yml
 
 - name: Download admin keytab
   become: yes

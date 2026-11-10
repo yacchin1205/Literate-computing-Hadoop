@@ -14,7 +14,7 @@
   command: klist -k {{ kerberos_princ_keytab_path }}
   register: target_keytabs
   changed_when: target_keytabs.rc != 0 or target_keytabs.stdout.find(kerberos_princ_username + '/' + ansible_fqdn) == -1
-  ignore_errors: yes
+  failed_when: false
 
 - name: Prepare keytab
   become: yes

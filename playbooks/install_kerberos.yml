@@ -1,4 +1,13 @@
 - hosts: kerberos_server
+  pre_tasks:
+    - name: Prepare private controller directory for KDC material
+      delegate_to: localhost
+      become: no
+      run_once: yes
+      file:
+        path: "{{ kerberos_admin_keytab_file | dirname }}"
+        state: directory
+        mode: '0700'
   roles:
     - kerberos-server
 
