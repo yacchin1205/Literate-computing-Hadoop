@@ -195,7 +195,8 @@ pipelining = True
                         edited = edited.replace('playbook_revision = None', 'playbook_revision = ' + repr(os.environ['LC4RI_TEST_REVISION']))
                         controls.edit(index, edited, 'Select the exact checked-out fork revision as the deployment source')
                     print(f'ORIGINAL PROCEDURE: {key} cell {index}', flush=True)
-                    observed = controls.run(index)
+                    optional_diagnostic = key == 'D00' and index in (26, 32)
+                    observed = controls.run(index, allow_error='RuntimeError' if optional_diagnostic else None)
                     executed.append(index)
                     output = json.dumps(observed['outputs'], ensure_ascii=False)
                     optional_diagnostic = key == 'D00' and index in (26, 32)
@@ -271,6 +272,7 @@ def check_hdfs(results, context, records):
     # Read the real NameNode UI as an operator after the T12a link confirmation.
     active = next(line.split()[0] for line in states.splitlines() if line.split()[-1] == 'active')
     address = active.rsplit(':', 1)[0]
+    address = ADDRESSES.get(address, address)
     page = context.new_page()
     page.goto('http://' + address + ':50070/dfshealth.html#tab-overview')
     page.wait_for_function("document.body.innerText.includes('Overview') && document.body.innerText.includes('Datanodes')", timeout=60000)

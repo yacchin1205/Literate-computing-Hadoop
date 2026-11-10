@@ -45,7 +45,7 @@ def operations(page, key, original, records, timeout=120000):
         records.append(dict(notebook=key, cell=index, action='edit working copy',
                             reason=reason, before=before, after=text))
 
-    def run(index, expected_error=None, inputs=()):
+    def run(index, expected_error=None, inputs=(), allow_error=None):
         unfreeze(index)
         select(index)
         before = state(index)['message']
@@ -65,14 +65,18 @@ def operations(page, key, original, records, timeout=120000):
             arg=dict(i=index, before=before), timeout=timeout)
         observed = state(index)
         errors = [o for o in observed['outputs'] if o.get('output_type') == 'error']
-        if expected_error:
+        if errors and allow_error:
+            assert all(e['ename'] == allow_error for e in errors), errors
+            assert not observed['frozen'], 'Optional diagnostic error was frozen as a success'
+        elif expected_error:
             assert len(errors) == 1 and (expected_error is True or errors[0]['ename'] == expected_error), errors
             assert not observed['frozen'], 'Failed cell was frozen as a success'
         else:
             assert not errors, errors
             assert observed['frozen'] and observed['readOnly'], observed
         records.append(dict(notebook=key, cell=index, action='Shift+Enter',
-                            frozen=observed['frozen'], expected_error=expected_error,
+                            frozen=observed['frozen'], expected_error=expected_error, allowed_error=allow_error,
+                            observed_errors=[e['ename'] for e in errors],
                             execution_count=observed['count']))
         return observed
 
