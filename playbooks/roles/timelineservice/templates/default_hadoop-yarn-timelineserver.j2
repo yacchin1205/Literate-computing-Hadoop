@@ -16,3 +16,7 @@ YARN_IDENT_STRING=yarn
 YARN_PID_DIR={{ yarn_pid_dir }}
 YARN_LOG_DIR={{ yarn_log_dir }}
 YARN_CONF_DIR={{ hadoop_conf_dir }}
+
+{% if timelineserver_heap_size is defined %}
+YARN_TIMELINESERVER_HEAPSIZE={{ timelineserver_heap_size }}
+{% endif %}

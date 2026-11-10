@@ -1,4 +1,4 @@
-name: Original notebooks | Construct HDFS through LC4RI
+name: Original notebooks | Construct HDFS, YARN and Spark through LC4RI
 on:
   pull_request:
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
   original-hdfs:
     if: github.repository == 'yacchin1205/Literate-computing-Hadoop'
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       HDFS_E2E_PACKAGE_CACHE: ${{ github.workspace }}/.hdfs-package-cache
     steps:
@@ -36,7 +36,7 @@ jobs:
         id: packages
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
-          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server') }}
+          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}
       - name: Make copies and operate original notebooks through the browser
         run: bash tests/lc4ri/run.sh
       - name: Check verified package cache
@@ -50,7 +50,7 @@ jobs:
         if: always() && steps.verified.outputs.complete == 'true' && steps.packages.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
-          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server') }}
+          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}
       - name: Verify execution preserved notebook originals
         if: always()
         run: git diff --exit-code HEAD -- '*.ipynb'
@@ -59,4 +59,14 @@ jobs:
         with:
           name: original-hdfs-ui
           path: test-results/original-hdfs/
+          retention-days: 14
+      - name: Upload notebook results without browser trace or video
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-notebook-results
+          path: |
+            test-results/original-hdfs/*.json
+            test-results/original-hdfs/*-working.ipynb
+            test-results/original-hdfs/*.png
           retention-days: 14

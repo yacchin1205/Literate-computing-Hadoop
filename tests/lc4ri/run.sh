@@ -19,7 +19,7 @@ cleanup() {
   docker cp "$controller:/home/jovyan/work/group_vars" "$result_dir/"
   for address in "${qemu_addresses[@]}"; do
     timeout 20s ssh -F "$private_dir/ssh_config" "ansible@$address" \
-      'sudo journalctl --no-pager -n 400; sudo tail -n 200 /var/log/hadoop-hdfs/*.log; sudo tail -n 100 /var/log/zookeeper/*' \
+      'sudo journalctl --no-pager -n 400; sudo tail -n 200 /var/log/hadoop-hdfs/*.log; sudo tail -n 100 /var/log/zookeeper/*; sudo tail -n 200 /var/log/hadoop-yarn/*.log; sudo tail -n 100 /var/log/hadoop-mapreduce/*.log; sudo tail -n 200 /var/log/spark/*; sudo systemctl --no-pager --full status hadoop-yarn-resourcemanager hadoop-yarn-nodemanager spark-history-server; free -m' \
       > "$result_dir/$address-services.log" 2>&1
   done
   docker rm -f "$controller"
@@ -30,7 +30,7 @@ cleanup() {
   exit "$result"
 }
 trap cleanup EXIT
-qemu_boot_guests 'nn1:172.29.88.10:3072:20G' 'nn2:172.29.88.11:3072:20G' 'dn1:172.29.88.12:2048:20G'
+qemu_boot_guests 'nn1:172.29.88.10:4096:20G' 'nn2:172.29.88.11:4096:20G' 'dn1:172.29.88.12:3072:20G'
 # Supply D12's documented OS/network/storage prerequisites, never install Hadoop here.
 for address in "${qemu_addresses[@]}"; do
   ssh -F "$private_dir/ssh_config" "ansible@$address" \
@@ -45,6 +45,7 @@ folder, results = map(pathlib.Path, sys.argv[1:])
 packages = [
  ('hadoop', 'https://repo.huaweicloud.com/apache/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz', 'hadoop'),
  ('zookeeper', 'https://archive.apache.org/dist/zookeeper/zookeeper-3.6.2/apache-zookeeper-3.6.2-bin.tar.gz', 'zookeeper_server'),
+ ('spark', 'https://repo.huaweicloud.com/apache/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz', 'spark'),
  ('jsvc', 'https://archive.apache.org/dist/commons/daemon/source/commons-daemon-1.2.4-src.tar.gz', 'hadoop'),
 ]
 manifest=[]

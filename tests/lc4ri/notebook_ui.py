@@ -25,6 +25,7 @@ SOURCES = {
     'D10': 'D10_Hadoop - Set! Inventory.ipynb',
     'D12': 'D12_Hadoop - Ready! on CentOS6 - ZK,HDFS,YARN,HBase,Hive,Spark.ipynb',
     'T12a': 'T12a_Hadoop - Confirm the services are alive - ZK,HDFS,YARN,HBase,Spark.ipynb',
+    'T12d': 'T12d_Hadoop - Simple Spark script for Test.ipynb',
 }
 ADDRESSES = {'nn1': '172.29.88.10', 'nn2': '172.29.88.11', 'dn1': '172.29.88.12'}
 
@@ -40,8 +41,8 @@ def host_table(original):
     for name, address in ADDRESSES.items():
         row = dict.fromkeys(header, '')
         row.update(Cluster='TestCluster', Type='qemu', Name=name, **{
-            'Service IP': address, 'VCPUs': '2', 'Memory(MiB)': '3072' if name != 'dn1' else '2048',
-            'DFS Volumes': '1', 'YARN VCPUs': '1', 'YARN Total Memory(MB)': '512',
+            'Service IP': address, 'VCPUs': '2', 'Memory(MiB)': '4096' if name != 'dn1' else '3072',
+            'DFS Volumes': '1', 'YARN VCPUs': '1', 'YARN Total Memory(MB)': '1024',
             'ZooKeeper': 'x', 'JournalNode': 'x', 'DataNode': 'x', 'NodeManager': 'x'})
         if name != 'dn1':
             row.update(NameNode='x', ResourceManager='x')
@@ -133,6 +134,10 @@ pipelining = True
             'hadoop_release_url': 'http://172.29.88.1:18555/hadoop-3.2.2.tar.gz',
             'zookeeper_release_url': 'http://172.29.88.1:18555/apache-zookeeper-3.6.2-bin.tar.gz',
             'jsvc_release_url': 'http://172.29.88.1:18555/commons-daemon-1.2.4-src.tar.gz',
+            'spark_release_url': 'http://172.29.88.1:18555/spark-3.1.1-bin-hadoop3.2.tgz',
+            'resourcemanager_heap_size': '256', 'nodemanager_heap_size': '256',
+            'job_historyserver_heapsize': '256', 'timelineserver_heap_size': '256',
+            'spark_daemon_memory': '256m',
             'namenode_total_java_heap': '512m', 'namenode_heap_size': '512',
             'datanode_heap_size': '256', 'journalnode_heap_size': '128',
             'zkfc_heap_size': '128', 'zookeeper_heap_size': '128',
@@ -174,9 +179,13 @@ pipelining = True
                 expected, executed = [], []
                 for index, cell in enumerate(original['cells']):
                     text = source(cell)
-                    if key in ('D12', 'T12a') and cell['cell_type'] == 'markdown' and text.startswith(('## YARNのインストール', '# YARNの状態確認')):
-                        coverage[key] = dict(stop_before_heading=text.splitlines()[0], stop_before_cell=index)
+                    # Explicit section boundaries: exercise YARN/Spark while leaving Tez/HBase/Hive out.
+                    if key == 'D12' and index == 102:
+                        coverage[key] = dict(stop_before_heading=text.splitlines()[0], stop_before_cell=index,
+                                             skipped_sections=['Tez', 'HBase', 'Hive'])
                         break
+                    if (key == 'D12' and 71 <= index <= 89) or (key == 'T12a' and 33 <= index <= 39):
+                        continue
                     if cell['cell_type'] != 'code' or not text.strip():
                         continue
                     expected.append(index)
@@ -227,6 +236,8 @@ pipelining = True
                 save('running')
             check_hdfs(results, context, records)
             passed.append('HDFS real service acceptance: HA states, three DataNodes, replicated file round trip and fsck')
+            check_yarn_spark(results, context, records)
+            passed.append('Spark on YARN: original T12d reads Iris from HDFS and writes verified results to HDFS')
             for key, data in originals.items():
                 assert (repo / SOURCES[key]).read_bytes() == data, 'Tracked original changed: ' + key
                 assert [source(c) for c in api(key + '-template.ipynb')['content']['cells']] == [source(c) for c in templates[key]['cells']]
@@ -281,6 +292,73 @@ def check_hdfs(results, context, records):
     page = context.new_page()
     page.goto('http://' + address + ':50070/dfshealth.html#tab-overview')
     check_namenode_ui(page, results)
+    page.close()
+
+
+def check_yarn_spark(results, context, records):
+    """Read-only acceptance of the job and HDFS data created by original T12d."""
+    ssh = ['ssh', *shlex.split(os.environ['ANSIBLE_SSH_ARGS']), 'ansible@172.29.88.10']
+    def remote(command):
+        output = subprocess.check_output([*ssh, command], text=True, timeout=90)
+        records.append(dict(action='YARN/Spark acceptance command', command=command, output=output))
+        return output
+    def hdfs(*args):
+        return remote(shlex.join(['hdfs', 'dfs', *args]))
+    content = hdfs('-cat', '/dataset/iris/iris.data')
+    lines = [line for line in content.splitlines() if line.strip()]
+    species = {}
+    for line in lines:
+        name = line.split(',')[-1]
+        species[name] = species.get(name, 0) + 1
+    expected = dict(lines=len(lines), lines_with_a=sum('a' in line for line in lines),
+                    lines_with_b=sum('b' in line for line in lines), species=species)
+    assert expected == dict(lines=150, lines_with_a=100, lines_with_b=0,
+        species={'Iris-setosa': 50, 'Iris-versicolor': 50, 'Iris-virginica': 50}), expected
+    hdfs('-test', '-e', '/dataset/iris/result/_SUCCESS')
+    actual = json.loads(hdfs('-cat', '/dataset/iris/result/part-*'))
+    assert actual == expected, (actual, expected)
+    states = {name: remote(shlex.join(['sudo', '-u', 'yarn', 'yarn', 'rmadmin', '-getServiceState', name])).strip()
+              for name in ['nn1', 'nn2']}
+    assert sorted(states.values()) == ['active', 'standby'], states
+    active = next(name for name, state in states.items() if state == 'active')
+    base = 'http://' + ADDRESSES[active] + ':8088'
+    def get(path):
+        with urllib.request.urlopen(base + path, timeout=30) as response:
+            return json.load(response)
+    nodes = get('/ws/v1/cluster/nodes')['nodes']['node']
+    assert len(nodes) == 3 and all(node['state'] == 'RUNNING' for node in nodes), nodes
+    apps = get('/ws/v1/cluster/apps?applicationTypes=SPARK')['apps']['app']
+    assert len(apps) == 1, apps
+    app = apps[0]
+    # YARN records the submission filename; the driver sets its Spark name later.
+    assert app['name'] == 'SimpleApp.py' and app['state'] == 'FINISHED' and app['finalStatus'] == 'SUCCEEDED', app
+    # The completed application must have actually allocated YARN containers.
+    assert app['memorySeconds'] > 0 and app['vcoreSeconds'] > 0, app
+    logs = remote(shlex.join(['yarn', 'logs', '-applicationId', app['id']]))
+    assert 'Lines with a: 100, lines with b: 0' in logs, logs[-4000:]
+    (results / 'spark-yarn-application.log').write_text(logs)
+    (results / 'yarn-spark-acceptance.json').write_text(json.dumps(dict(
+        input_sha256=hashlib.sha256(content.encode()).hexdigest(), expected=expected, actual=actual,
+        rm_states=states, nodes=nodes, application=app), indent=2) + '\n')
+    page = context.new_page()
+    page.goto(base + '/cluster/app/' + app['id'])
+    expect(page.locator('body')).to_contain_text(app['id'], timeout=60000)
+    expect(page.locator('body')).to_contain_text('SUCCEEDED')
+    page.screenshot(path=str(results / 'yarn-application.png'), full_page=True)
+    page.goto('http://172.29.88.10:18080')
+    # History Server polls HDFS; wait for the completed application to be indexed.
+    for attempt in range(30):
+        with urllib.request.urlopen('http://172.29.88.10:18080/api/v1/applications', timeout=30) as response:
+            history = json.load(response)
+        if any(item['id'] == app['id'] and item['attempts'][0]['completed'] for item in history):
+            break
+        time.sleep(2)
+    else:
+        raise AssertionError('Completed Spark application missing from History Server')
+    page.reload()
+    expect(page.locator('body')).to_contain_text('test-pyspark', timeout=60000)
+    page.screenshot(path=str(results / 'spark-history.png'), full_page=True)
+    (results / 'spark-history.json').write_text(json.dumps(history, indent=2) + '\n')
     page.close()
 
 
