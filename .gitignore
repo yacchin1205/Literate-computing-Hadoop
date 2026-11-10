@@ -2,3 +2,5 @@
 .ci-state/
 .ci-artifacts/
 .venv-ci/
+
+__pycache__/
