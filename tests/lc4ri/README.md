@@ -97,3 +97,19 @@ Independent acceptance checks the effective Hadoop authentication mode,
 a real user TGT, and rejection of HDFS access with an empty ticket cache even
 when HADOOP_USER_NAME=hdfs is supplied. The authenticated HDFS round trip and
 Spark result checks still run, along with the HTTPS service pages via SPNEGO.
+
+The `hdfs-upgrade` matrix job uses simple authentication and installs Hadoop
+3.2.2 through the same original notebooks and checks. It then opens a copy
+of O12e and runs the HDFS 3.3.6 rolling upgrade against those same guests.
+The upgraded NameNode takes over through an explicit HA failover. Each
+DataNode must return before the next one is restarted. The new archive is
+checked against the SHA-512 in O12e.
+
+The notebook records timed HDFS read/write samples before and during the
+upgrade and checks the new daemon processes. The workflow finalizes the
+upgrade in the disposable cluster, then independently reads the original
+HDFS binary and the Iris input and Spark results. The upgrade job saves
+`O12e-working.ipynb` and `hdfs-upgrade-acceptance.json` with its other
+notebook results. This job upgrades HDFS NameNodes, ZKFCs and DataNodes.
+YARN, Spark, JournalNodes and ZooKeeper retain the versions used during
+initial installation.

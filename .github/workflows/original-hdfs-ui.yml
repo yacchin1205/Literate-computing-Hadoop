@@ -1,4 +1,4 @@
-name: Original notebooks | Construct HDFS, YARN and Spark through LC4RI
+name: Original notebooks | Hadoop lifecycle through LC4RI
 on:
   pull_request:
   workflow_dispatch:
@@ -10,15 +10,23 @@ concurrency:
 jobs:
   original-hdfs:
     if: github.repository == 'yacchin1205/Literate-computing-Hadoop'
-    name: Original notebooks (${{ matrix.security }})
+    name: Original notebooks (${{ matrix.scenario }})
     strategy:
       fail-fast: false
       matrix:
-        security: [simple, kerberos]
+        include:
+          - scenario: simple
+            security: simple
+          - scenario: kerberos
+            security: kerberos
+          - scenario: hdfs-upgrade
+            security: simple
+            cache_suffix: -hdfs-upgrade-3.3.6
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    timeout-minutes: 110
     env:
       HADOOP_SECURITY_MODE: ${{ matrix.security }}
+      HADOOP_TEST_SCENARIO: ${{ matrix.scenario }}
       HDFS_E2E_PACKAGE_CACHE: ${{ github.workspace }}/.hdfs-package-cache
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +50,7 @@ jobs:
         id: packages
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
-          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}
+          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}${{ matrix.cache_suffix }}
       - name: Make copies and operate original notebooks through the browser
         run: bash tests/lc4ri/run.sh
       - name: Check verified package cache
@@ -56,21 +64,21 @@ jobs:
         if: always() && steps.verified.outputs.complete == 'true' && steps.packages.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
-          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}
+          key: hdfs-archives-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}${{ matrix.cache_suffix }}
       - name: Verify execution preserved notebook originals
         if: always()
         run: git diff --exit-code HEAD -- '*.ipynb'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: original-hdfs-ui-${{ matrix.security }}
+          name: original-hdfs-ui-${{ matrix.scenario }}
           path: test-results/original-hdfs/
           retention-days: 14
       - name: Upload notebook results without browser trace or video
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: original-notebook-results-${{ matrix.security }}
+          name: original-notebook-results-${{ matrix.scenario }}
           path: |
             test-results/original-hdfs/*.json
             test-results/original-hdfs/*-working.ipynb
