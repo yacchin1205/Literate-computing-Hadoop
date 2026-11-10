@@ -1,0 +1,43 @@
+name: Original notebooks | Construct HDFS through LC4RI
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: original-hdfs-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  original-hdfs:
+    if: github.repository == 'yacchin1205/Literate-computing-Hadoop'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tests/lc4ri/requirements.txt
+      - name: Verify clean original notebooks
+        run: git diff --exit-code HEAD -- '*.ipynb'
+      - name: Install browser and VM prerequisites
+        run: |
+          python -m pip install -r tests/lc4ri/requirements.txt
+          python -m playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+      - name: Make copies and operate original notebooks through the browser
+        run: bash tests/lc4ri/run.sh
+      - name: Verify execution preserved notebook originals
+        if: always()
+        run: git diff --exit-code HEAD -- '*.ipynb'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-hdfs-ui
+          path: test-results/original-hdfs/
+          retention-days: 14
