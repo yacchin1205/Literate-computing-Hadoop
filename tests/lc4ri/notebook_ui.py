@@ -19,6 +19,9 @@ import yaml
 from browser_evidence import recorded_context, finish_recording
 from notebook_controls import operations
 
+SECURITY_MODE = os.environ.get('HADOOP_SECURITY_MODE', 'simple')
+assert SECURITY_MODE in ('simple', 'kerberos')
+SECURE = SECURITY_MODE == 'kerberos'
 BASE = 'http://127.0.0.1:18888'
 SOURCES = {
     'D00': 'D00_Prerequisites for Literate Computing via Notebooks.ipynb',
@@ -46,6 +49,8 @@ def host_table(original):
             'ZooKeeper': 'x', 'JournalNode': 'x', 'DataNode': 'x', 'NodeManager': 'x'})
         if name != 'dn1':
             row.update(NameNode='x', ResourceManager='x')
+        if name == 'nn1' and SECURE:
+            row['KDC Master'] = 'x'
         if name == 'nn1':
             for role in ['Ganglia', 'TimelineService', 'MapReduce HistoryServer', 'HBase Master',
                          'HBase RegionServer', 'Tez', 'Hive', 'Pig', 'Client', 'Spark', 'Spark HistoryServer']:
@@ -142,6 +147,11 @@ pipelining = True
             'datanode_heap_size': '256', 'journalnode_heap_size': '128',
             'zkfc_heap_size': '128', 'zookeeper_heap_size': '128',
         }
+        if SECURE:
+            updates.update(kerberos_master_key_password=os.environ['KERBEROS_TEST_PASSWORD'],
+                https_keystore_pass=os.environ['KERBEROS_TEST_PASSWORD'],
+                https_truststore_pass=os.environ['KERBEROS_TEST_PASSWORD'],
+                https_privkey_pass=os.environ['KERBEROS_TEST_PASSWORD'], datanode_https_port='50475')
         values.update(updates)
         edit_file(context, path, yaml.safe_dump(values, sort_keys=False),
                   'Choose verified archive mirror and JVM memory budgets for the declared VM sizes')
@@ -149,7 +159,8 @@ pipelining = True
         (results / 'generated-group-vars.yml').write_text(original)
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch()
+        browser = pw.chromium.launch(args=['--auth-server-allowlist=nn1,nn2,dn1',
+            '--auth-negotiate-delegate-allowlist=nn1,nn2,dn1'] if SECURE else [])
         context = recorded_context(browser, results / 'videos', viewport={'width': 1600, 'height': 1000})
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
         page = None
@@ -204,6 +215,9 @@ pipelining = True
                                       'Enter the prerequisite archive server address')
                     if key == 'D10' and text.strip() == '!ls -la group_vars/':
                         group_vars(context)
+                    if SECURE and key in ('D12', 'T12a', 'T12d') and index == 3:
+                        controls.edit(index, text.replace("security_mode = 'simple'", "security_mode = 'kerberos'"),
+                                      'Select the Kerberos variant declared by the workflow matrix')
                     if key == 'D12' and text.startswith('playbook_repository ='):
                         edited = text.replace("'https://github.com/NII-cloud-operation/Literate-computing-Hadoop.git'", "'file:///opt/test-source.git'")
                         edited = edited.replace('playbook_revision = None', 'playbook_revision = ' + repr(os.environ['LC4RI_TEST_REVISION']))
@@ -234,6 +248,8 @@ pipelining = True
                 page = None
                 passed.append(key + ': original working-copy procedure completed within declared scope')
                 save('running')
+            prepare_browser_credentials()
+            check_security(results, records)
             check_hdfs(results, context, records)
             passed.append('HDFS real service acceptance: HA states, three DataNodes, replicated file round trip and fsck')
             check_yarn_spark(results, context, records)
@@ -256,6 +272,43 @@ pipelining = True
         finally:
             finish_recording(context, results / 'browser-trace.zip', results / 'videos')
             browser.close()
+
+
+def prepare_browser_credentials():
+    if not SECURE:
+        return
+    keytab = Path(os.environ['KRB5_CONFIG']).parent / 'browser.keytab'
+    command = ['scp', *shlex.split(os.environ['ANSIBLE_SSH_ARGS']),
+               'ansible@172.29.88.10:/home/ansible/.hadoop.keytab', str(keytab)]
+    subprocess.run(command, check=True, timeout=30)
+    keytab.chmod(0o600)
+    subprocess.run(['kinit', '-kt', str(keytab), 'ansible@TESTCLUSTER.ECLOUD.NII.AC.JP'], check=True, timeout=30)
+
+
+def service_json(url):
+    if SECURE:
+        # Disposable self-signed test certificates are provisioned as prerequisites.
+        return json.loads(subprocess.check_output(['curl', '--silent', '--show-error', '--fail',
+            '--insecure', '--negotiate', '-u', ':', url], text=True, timeout=60))
+    with urllib.request.urlopen(url, timeout=30) as response:
+        return json.load(response)
+
+
+def check_security(results, records):
+    ssh = ['ssh', *shlex.split(os.environ['ANSIBLE_SSH_ARGS']), 'ansible@172.29.88.10']
+    actual = subprocess.check_output([*ssh, 'hdfs getconf -confKey hadoop.security.authentication'], text=True, timeout=60).strip()
+    assert actual == ('kerberos' if SECURE else 'simple'), actual
+    evidence = dict(matrix_mode=SECURITY_MODE, actual_authentication=actual)
+    if SECURE:
+        denied = subprocess.run([*ssh, 'env KRB5CCNAME=FILE:/tmp/nonexistent-ci-cache HADOOP_USER_NAME=hdfs hdfs dfs -ls /'],
+                                capture_output=True, text=True, timeout=60)
+        error = denied.stdout + denied.stderr
+        assert denied.returncode != 0 and re.search(r'Kerberos|KERBEROS|credentials|TGT|SASL', error), error
+        ticket = subprocess.check_output([*ssh, 'klist'], text=True, timeout=30)
+        assert 'ansible@TESTCLUSTER.ECLOUD.NII.AC.JP' in ticket, ticket
+        evidence.update(no_ticket_returncode=denied.returncode, no_ticket_output=error, client_ticket=ticket)
+    (results / 'security-acceptance.json').write_text(json.dumps(evidence, indent=2) + '\n')
+    records.append(dict(action='Verify actual security mode and reject unauthenticated HDFS access', **evidence))
 
 
 def check_hdfs(results, context, records):
@@ -288,9 +341,11 @@ def check_hdfs(results, context, records):
     # Read the real NameNode UI as an operator after the T12a link confirmation.
     active = next(line.split()[0] for line in states.splitlines() if line.split()[-1] == 'active')
     address = active.rsplit(':', 1)[0]
-    address = ADDRESSES.get(address, address)
+    address = address if SECURE else ADDRESSES.get(address, address)
+    if SECURE and address in ADDRESSES.values():
+        address = next(name for name, ip in ADDRESSES.items() if ip == address)
     page = context.new_page()
-    page.goto('http://' + address + ':50070/dfshealth.html#tab-overview')
+    page.goto(('https://' + address + ':50470' if SECURE else 'http://' + address + ':50070') + '/dfshealth.html#tab-overview')
     check_namenode_ui(page, results)
     page.close()
 
@@ -321,10 +376,9 @@ def check_yarn_spark(results, context, records):
               for name in ['nn1', 'nn2']}
     assert sorted(states.values()) == ['active', 'standby'], states
     active = next(name for name, state in states.items() if state == 'active')
-    base = 'http://' + ADDRESSES[active] + ':8088'
+    base = 'https://' + active + ':8088' if SECURE else 'http://' + ADDRESSES[active] + ':8088'
     def get(path):
-        with urllib.request.urlopen(base + path, timeout=30) as response:
-            return json.load(response)
+        return service_json(base + path)
     nodes = get('/ws/v1/cluster/nodes')['nodes']['node']
     assert len(nodes) == 3 and all(node['state'] == 'RUNNING' for node in nodes), nodes
     apps = get('/ws/v1/cluster/apps?applicationTypes=SPARK')['apps']['app']
@@ -348,8 +402,7 @@ def check_yarn_spark(results, context, records):
     page.goto('http://172.29.88.10:18080')
     # History Server polls HDFS; wait for the completed application to be indexed.
     for attempt in range(30):
-        with urllib.request.urlopen('http://172.29.88.10:18080/api/v1/applications', timeout=30) as response:
-            history = json.load(response)
+        history = service_json('http://172.29.88.10:18080/api/v1/applications')
         if any(item['id'] == app['id'] and item['attempts'][0]['completed'] for item in history):
             break
         time.sleep(2)

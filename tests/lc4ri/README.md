@@ -73,3 +73,27 @@ artifact download does not prevent reviewing the actual outcomes.
 Browser controls, evidence helpers and the QEMU lifecycle are adapted from
 [yacchin1205/CoursewareHub-LC_deploy PR #1](https://github.com/yacchin1205/CoursewareHub-LC_deploy/pull/1),
 commit `b22d9a0bad4df839a59c19ac56838e724390d788`; see that repository for attribution.
+
+## Security matrix
+
+The workflow runs `simple` and `kerberos` on separate disposable runners with
+`fail-fast: false`. Both operate the same 98 original code cells. Artifacts are
+suffixed with the matrix mode. For local runs, set `HADOOP_SECURITY_MODE`.
+The Kerberos entry selects KDC Master in D10's host table and the explicit
+`security_mode` input in D12/T12a/T12d. D12 calls the repository KDC roles and
+prepares a regular Hadoop client principal; service and user commands acquire
+real tickets, and Spark uses delegation tokens in YARN cluster mode.
+
+External HTTPS keystores/truststores are documented prerequisites. The CI
+fixture supplies disposable self-signed JKS files; the runner needs `keytool`,
+MIT `kinit`, and a curl build with SPNEGO. Java/KDC/Hadoop installation inside
+the VMs remains in the original Notebook procedures. Generated keytabs and
+KDC master material stay outside the Notebook work directory, and are not
+included in uploaded artifacts. Test-only realm/store passwords have no use
+outside the disposable run. Browser HTTPS verification is disabled for these
+self-signed test certificates, as in the existing browser evidence helper.
+
+Independent acceptance checks the effective Hadoop authentication mode,
+a real user TGT, and rejection of HDFS access with an empty ticket cache even
+when HADOOP_USER_NAME=hdfs is supplied. The authenticated HDFS round trip and
+Spark result checks still run, along with the HTTPS service pages via SPNEGO.

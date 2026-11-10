@@ -31,6 +31,26 @@ cleanup() {
 }
 trap cleanup EXIT
 qemu_boot_guests 'nn1:172.29.88.10:4096:20G' 'nn2:172.29.88.11:4096:20G' 'dn1:172.29.88.12:3072:20G'
+if [[ "${HADOOP_SECURITY_MODE:-simple}" == kerberos ]]; then
+  export KERBEROS_TEST_PASSWORD KRB5_CONFIG KRB5CCNAME
+  KERBEROS_TEST_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+  KRB5_CONFIG="$private_dir/krb5-browser.conf"
+  KRB5CCNAME="FILE:$private_dir/browser.ccache"
+  cat > "$KRB5_CONFIG" <<EOF
+[libdefaults]
+ default_realm = TESTCLUSTER.ECLOUD.NII.AC.JP
+ dns_lookup_kdc = false
+ rdns = false
+ dns_canonicalize_hostname = false
+[realms]
+ TESTCLUSTER.ECLOUD.NII.AC.JP = {
+  kdc = 172.29.88.10
+  admin_server = 172.29.88.10
+ }
+EOF
+  printf '\n172.29.88.10 nn1\n172.29.88.11 nn2\n172.29.88.12 dn1\n' | sudo tee -a /etc/hosts > /dev/null
+  source tests/lc4ri/security-prerequisites.sh
+fi
 # Supply D12's documented OS/network/storage prerequisites, never install Hadoop here.
 for address in "${qemu_addresses[@]}"; do
   ssh -F "$private_dir/ssh_config" "ansible@$address" \
