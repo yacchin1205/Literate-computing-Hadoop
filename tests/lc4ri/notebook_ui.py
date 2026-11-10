@@ -180,7 +180,7 @@ pipelining = True
                                   'Enter the real three-VM placement design requested by D10')
                     if key == 'D10' and 'inventory-old inventory' in text:
                         generated = ''.join(o.get('text', '') for o in controls.state(controls.find('%run scripts/inventory-hadoop.py'))['outputs'])
-                        generated = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', generated)
+                        generated = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', generated).replace('\r\n', '\n')
                         assert '[hadoop_all_testcluster:children]' in generated and all(ip in generated for ip in ADDRESSES.values()), generated
                         edit_file(context, 'inventory', initial_inventory + '\n' + generated,
                                   'Manually merge the Inventory emitted by the original D10 cell, preserving existing hosts')
