@@ -24,6 +24,7 @@
   become: yes
   template: src={{ item }}.j2 dest=/etc/hadoop/conf/{{ item }}
   with_items:
+  - jaas-hadoop.conf
   - ssl-server.xml
   - ssl-client.xml
   - zk-acl.txt
