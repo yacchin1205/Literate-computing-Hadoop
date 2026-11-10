@@ -1,0 +1,7 @@
+- hosts: hadoop_zookeeperserver
+  become: yes
+  tasks:
+    - name: Enable ZooKeeper across guest reboots
+      ansible.builtin.service:
+        name: zookeeper-server
+        enabled: yes

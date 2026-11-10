@@ -1,0 +1,53 @@
+name: QEMU notebook integration
+on:
+  push:
+    branches: [ci/qemu-notebook]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qemu-notebook-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  zookeeper-baseline:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      CI_STATE: ${{ github.workspace }}/.ci-state
+      CI_ARTIFACTS: ${{ github.workspace }}/.ci-artifacts
+      ANSIBLE_LOG_PATH: ${{ github.workspace }}/.ci-artifacts/ansible.log
+      ANSIBLE_NOCOLOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: ci/requirements.txt
+      - name: Install controller and QEMU tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils cloud-image-utils
+          python -m pip install -r ci/requirements.txt
+          python -m ipykernel install --user --name python3
+          mkdir -p "$CI_ARTIFACTS"
+          python -m pip freeze > "$CI_ARTIFACTS/controller-packages.txt"
+      - name: Boot disposable Ubuntu guest
+        run: bash ci/qemu.sh start
+      - name: Execute baseline notebook
+        run: python ci/run-notebook.py
+      - name: Collect guest diagnostics
+        if: always()
+        run: bash ci/qemu.sh collect
+      - name: Stop disposable guest
+        if: always()
+        run: bash ci/qemu.sh stop
+      - name: Upload notebook evidence and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zookeeper-3.6.2-baseline
+          path: .ci-artifacts/
+          if-no-files-found: warn
+          retention-days: 14

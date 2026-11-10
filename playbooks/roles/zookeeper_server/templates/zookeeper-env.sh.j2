@@ -17,7 +17,6 @@ export JAVA_HOME={{ java_home }}
 export SERVER_JVMFLAGS="{{ zookeeper_server_jvm_opt }}"
 export ZOO_LOG_DIR={{zookeeper_log_dir }}
 export ZOOPIDFILE={{ zookeeper_pid_dir }}/zookeeper_server.pid
-export DAEMON_SCRIPT=/usr/hdp/{{ hdp_version }}/zookeeper/bin/zookeeper-server
 
 {% if zookeeper_heap_size != '' %}
 export ZOOKEEPER_HEAPSIZE='-Xmx{{ zookeeper_heap_size }}m '

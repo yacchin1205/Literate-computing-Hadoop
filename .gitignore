@@ -1,1 +1,4 @@
 .ipynb_checkpoints/
+.ci-state/
+.ci-artifacts/
+.venv-ci/
