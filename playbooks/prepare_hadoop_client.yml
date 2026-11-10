@@ -11,6 +11,6 @@
         owner: "{{ ansible_user }}"
         mode: '0400'
     - name: Acquire Hadoop client credentials
-      become_user: "{{ ansible_user }}"
+      become: no
       command: "kinit -kt /home/{{ ansible_user }}/.hadoop.keytab {{ ansible_user }}@{{ kerberos_realm }}"
       changed_when: false
