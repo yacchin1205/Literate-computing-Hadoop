@@ -229,7 +229,9 @@ mv -T -- "$work/$package" "$destination"
         unit = f"hadoop-hdfs-{role}.service"
         directory = f"/etc/systemd/system/{unit}.d"
         args = " -rollingUpgrade started" if rolling else ""
-        content = f"[Service]\nExecStart=\nExecStart={self.new_home}/bin/hdfs --config /etc/hadoop/conf {role}{args}\n"
+        # The original EnvironmentFile sets HADOOP_HOME to the shared current link.
+        content = (f"[Service]\nExecStart=\nExecStart=/usr/bin/env HADOOP_HOME={self.new_home} "
+                   f"{self.new_home}/bin/hdfs --config /etc/hadoop/conf {role}{args}\n")
         self.remote(host, "sudo", "-n", "install", "-d", "-m", "0755", directory)
         self.remote(host, "sudo", "-n", "tee", directory + "/90-rolling-upgrade.conf", input_text=content)
 
