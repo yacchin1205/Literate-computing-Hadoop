@@ -1,7 +1,7 @@
 name: QEMU notebook integration
 on:
   push:
-    branches: [ci/qemu-notebook]
+    branches: [master, feature/kerberos-principal]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -50,4 +50,5 @@ jobs:
           name: zookeeper-3.6.2-baseline
           path: .ci-artifacts/
           if-no-files-found: warn
+          include-hidden-files: true
           retention-days: 14

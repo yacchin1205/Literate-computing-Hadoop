@@ -66,7 +66,7 @@ PY
     done
     "$ready" || { echo 'Guest SSH did not become ready' >&2; exit 1; }
     ssh "${ssh_options[@]}" ansible@127.0.0.1 'sudo cloud-init status --wait'
-    ssh "${ssh_options[@]}" ansible@127.0.0.1 'sudo apt-get update && sudo apt-get install -y python3 openjdk-11-jdk'
+    ssh "${ssh_options[@]}" ansible@127.0.0.1 'sudo apt-get update && sudo apt-get install -y python3'
     ;;
   collect)
     if test -f "$CI_STATE/id_ed25519"; then

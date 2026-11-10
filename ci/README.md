@@ -8,7 +8,7 @@ The guest's disk is preserved through every phase. This tests standalone
 ZooKeeper; it does not test an ensemble, Hadoop, Kerberos, or an upgrade yet.
 
 The workflow runs on pull requests, manual dispatch, and pushes to
-`ci/qemu-notebook`. `/dev/kvm` is required and checked explicitly. Nested
+`master` and `feature/kerberos-principal`. `/dev/kvm` is required and checked explicitly. Nested
 virtualization is not guaranteed by GitHub; a runner without KVM fails instead
 of quietly falling back to very slow emulation.
 
