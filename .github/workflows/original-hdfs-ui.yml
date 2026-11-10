@@ -60,3 +60,13 @@ jobs:
           name: original-hdfs-ui
           path: test-results/original-hdfs/
           retention-days: 14
+      - name: Upload notebook results without browser trace or video
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-notebook-results
+          path: |
+            test-results/original-hdfs/*.json
+            test-results/original-hdfs/*-working.ipynb
+            test-results/original-hdfs/*.png
+          retention-days: 14

@@ -66,6 +66,9 @@ coverage (including the excluded later sections), input/operation records,
 screenshots, browser trace and videos, inventory/group variables, package hashes,
 LC logs, VM serial logs, service logs, and HDFS/YARN/Spark acceptance evidence. Original
 Notebook source changes are product fixes committed separately from CI support.
+A second, small `original-notebook-results` artifact contains the same result JSON,
+working copies and screenshots without the large browser trace/videos, so a slow
+artifact download does not prevent reviewing the actual outcomes.
 
 Browser controls, evidence helpers and the QEMU lifecycle are adapted from
 [yacchin1205/CoursewareHub-LC_deploy PR #1](https://github.com/yacchin1205/CoursewareHub-LC_deploy/pull/1),
