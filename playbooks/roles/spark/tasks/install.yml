@@ -17,6 +17,7 @@
     src: "{{ spark_dir }}/package/{{ spark_package_filename }}.tgz"
     dest: "{{ spark_dir }}"
     remote_src: yes
+    creates: "{{ spark_dir }}/{{ spark_package_filename }}/bin/spark-submit"
 
 - name: link_latest_package
   become: yes

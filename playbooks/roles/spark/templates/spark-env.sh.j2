@@ -66,3 +66,7 @@ export SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.kerberos.enabled=
 export SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.kerberos.principal=spark/{{ ansible_fqdn }}@{{ kerberos_realm }} "
 export SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.kerberos.keytab=/etc/spark/conf/spark.keytab "
 {% endif %}
+
+{% if spark_daemon_memory is defined %}
+export SPARK_DAEMON_MEMORY={{ spark_daemon_memory }}
+{% endif %}
