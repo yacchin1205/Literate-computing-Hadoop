@@ -159,9 +159,19 @@ pipelining = True
         (results / 'generated-group-vars.yml').write_text(original)
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(args=['--auth-server-allowlist=nn1,nn2,dn1',
-            '--auth-negotiate-delegate-allowlist=nn1,nn2,dn1'] if SECURE else [])
-        context = recorded_context(browser, results / 'videos', viewport={'width': 1600, 'height': 1000})
+        if SECURE:
+            # Chromium disables ambient Kerberos auth in private contexts.
+            size = {'width': 1600, 'height': 1000}
+            profile = str(Path(os.environ['KRB5_CONFIG']).parent / 'chromium-profile')
+            context = pw.chromium.launch_persistent_context(profile,
+                args=['--auth-server-allowlist=nn1,nn2,dn1',
+                      '--auth-negotiate-delegate-allowlist=nn1,nn2,dn1'],
+                ignore_https_errors=True, viewport=size,
+                record_video_dir=str(results / 'videos'), record_video_size=size)
+            browser = context.browser
+        else:
+            browser = pw.chromium.launch()
+            context = recorded_context(browser, results / 'videos', viewport={'width': 1600, 'height': 1000})
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
         page = None
         try:
@@ -271,7 +281,8 @@ pipelining = True
             raise
         finally:
             finish_recording(context, results / 'browser-trace.zip', results / 'videos')
-            browser.close()
+            if browser is not None:
+                browser.close()
 
 
 def prepare_browser_credentials():
