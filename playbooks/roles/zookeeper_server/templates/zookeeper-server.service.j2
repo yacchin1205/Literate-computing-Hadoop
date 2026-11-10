@@ -4,6 +4,10 @@ Description=Apache Zookeeper Service
 [Service]
 Type=forking
 User=zookeeper
+{% if zookeeper_pid_dir.startswith('/run/') or zookeeper_pid_dir.startswith('/var/run/') %}
+RuntimeDirectory={{ zookeeper_pid_dir | regex_replace('^/(var/)?run/', '') }}
+RuntimeDirectoryMode=0755
+{% endif %}
 ExecStart={{ zookeeper_dir }}/current/bin/zkServer.sh --config /etc/zookeeper/conf start
 ExecStop={{ zookeeper_dir }}/current/bin/zkServer.sh --config /etc/zookeeper/conf stop
 

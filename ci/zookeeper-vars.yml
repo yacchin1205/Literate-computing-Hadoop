@@ -1,0 +1,8 @@
+# Historical baseline. Override this file for a future migration target.
+zookeeper_release_url: https://archive.apache.org/dist/zookeeper/zookeeper-3.6.2/apache-zookeeper-3.6.2-bin.tar.gz
+zookeeper_release_checksum: sha512:caff5111bb6876b7124760bc006e6fa2523efa54b99321a3c9cd8192ea0d5596abc7d70a054b1aac9b20a411407dae7611c7aba870c23bff28eb1643ba499199
+zookeeper_package_filename: apache-zookeeper-3.6.2-bin
+zookeeper_data_dir: /var/lib/zookeeper
+zookeeper_servers:
+  - 127.0.0.1
+zookeeper_server_id: 1
