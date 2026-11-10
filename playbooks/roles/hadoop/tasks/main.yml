@@ -1,1 +1,1 @@
-- include: install.yml
+- import_tasks: install.yml
