@@ -21,6 +21,7 @@ def write_kerberos_vars(target_machines, outf):
 
 
 def write_hadoop_group_vars(target_machines, outf, archive_url, hdp_version='2.4.2.0'):
+    target_machines = list(target_machines)
     namenodes = [m for m in target_machines if m['NameNode']]
     datanodes = [m for m in target_machines if m['DataNode']]
     journalnodes = [m for m in target_machines if m['JournalNode']]
@@ -175,6 +176,7 @@ spark_download_url: 'http://xxx.nii.ac.jp/v1/AUTH_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
                 
 def write_hadoop_inventory(target_machines, outf):
+    target_machines = list(target_machines)
     cluster = target_machines[0]['Cluster'].lower()
     namenodes = [m for m in target_machines if m['NameNode']]
     datanodes = [m for m in target_machines if m['DataNode']]

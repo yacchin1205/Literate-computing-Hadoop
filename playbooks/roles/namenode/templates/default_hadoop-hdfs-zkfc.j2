@@ -22,9 +22,10 @@ HADOOP_IDENT_STRING=hdfs
 
 HADOOP_HEAPSIZE="{{ zkfc_heap_size }}"
 {% if kerberos_realm is defined %}
-ZKFC_JAAS_CONF='-Djava.security.auth.login.config=/etc/hadoop/conf/jaas-hdfs.conf '
+HADOOP_ZKFC_OPTS="-Djava.security.auth.login.config=/etc/hadoop/conf/jaas-hdfs.conf {{ zkfc_java_opts }}"
+{% else %}
+HADOOP_ZKFC_OPTS="{{ zkfc_java_opts }}"
 {% endif %}
-HADOOP_ZKFC_OPTS=${ZKFC_JAAS_CONF}"{{ zkfc_java_opts }}"
 
 # export HADOOP_SECURE_DN_USER=hdfs
 # export HADOOP_SECURE_DN_PID_DIR=/var/run/hadoop-hdfs

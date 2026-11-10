@@ -4,3 +4,7 @@
 .venv-ci/
 
 __pycache__/
+
+test-results/
+
+.hdfs-package-cache/

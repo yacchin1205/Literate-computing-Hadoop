@@ -1,7 +1,19 @@
+- name: prepare_rc_local
+  become: yes
+  copy:
+    dest: /etc/rc.local
+    content: "#!/bin/sh -e\n"
+    force: no
+    mode: '0755'
+
+- name: ensure_rc_local_executable
+  become: yes
+  file: path=/etc/rc.local mode=0755
+
 - name: set_transparent_hugepage
   become: yes
-  lineinfile: dest=/etc/rc.local line="echo never > /sys/kernel/mm/transparent_hugepage/defrag" regexp="echo .+ > /sys/kernel/mm/transparent_hugepage/defrag" create=yes
+  lineinfile: dest=/etc/rc.local line="echo never > /sys/kernel/mm/transparent_hugepage/defrag" regexp="echo .+ > /sys/kernel/mm/transparent_hugepage/defrag" insertbefore="^exit 0" create=yes
 
 - name: ensure_rc_local
   become: yes
-  service: name=rc-local state=started enabled=yes
+  systemd: name=rc-local state=started daemon_reload=yes
