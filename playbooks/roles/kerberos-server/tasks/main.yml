@@ -2,6 +2,16 @@
   become: yes
   apt: name=krb5-kdc,krb5-admin-server,krb5-config,krb5-kpropd,krb5-user,cron state=latest
 
+- name: Disable slave propagation service on the KDC master
+  become: yes
+  service: name=krb5-kpropd state=stopped enabled=no
+  when: kdc_role == 'master'
+
+- name: Disable admin service on a KDC slave
+  become: yes
+  service: name=krb5-admin-server state=stopped enabled=no
+  when: kdc_role == 'slave'
+
 - name: Modify krb5.conf
   become: yes
   template: src=krb5.conf.j2 dest=/etc/krb5.conf
