@@ -89,7 +89,7 @@
     path: "{{ hadoop_dir }}/{{ hadoop_package_filename }}/bin/container-executor"
     owner: root
     group: yarn
-    mode: "4750"
+    mode: "6050"
 
 - name: prepare_package_dir
   become: yes

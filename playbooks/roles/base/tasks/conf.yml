@@ -39,3 +39,8 @@
   become: yes
   file: path={{ https_truststore_path }} owner=root group=root mode=0444
   when: kerberos_realm is defined
+
+- name: Protect LinuxContainerExecutor configuration
+  become: yes
+  file: path=/etc/hadoop/conf/container-executor.cfg owner=root group=yarn mode=0400
+  when: kerberos_realm is defined
