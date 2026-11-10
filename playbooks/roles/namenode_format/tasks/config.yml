@@ -2,11 +2,19 @@
   become: yes
   stat: path={{ item }}/current
   with_items: "{{ dfs_namenode_name_dirs }}"
+  register: namenode_format_state
+
+- name: Refuse to format an existing NameNode
+  assert:
+    that:
+      - dfs_namenode_name_dirs | length > 0
+      - namenode_format_state.results | selectattr('stat.exists') | list | length == 0
+    fail_msg: 'Refusing to format existing NameNode storage; preserve it for restart or migration.'
 
 - name: FORMAT_namenode
   become: yes
   become_user: hdfs
-  shell: hdfs namenode -format -force
+  command: hdfs namenode -format -nonInteractive
 
 - name: FORMAT_ZKFC
   become: yes
