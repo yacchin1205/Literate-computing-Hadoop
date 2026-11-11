@@ -242,8 +242,25 @@ mv -T -- "$work/$package" "$destination"
         pid = self.remote(host, "systemctl", "show", "-p", "MainPID", "--value",
                           f"hadoop-hdfs-{role}").stdout.strip()
         require(pid.isdecimal() and int(pid) > 0, f"{host}: {role} has no MainPID")
-        args = self.remote(host, "sudo", "-n", "cat", f"/proc/{pid}/cmdline").stdout
-        require(f"{self.new_home}/share/hadoop/hdfs" in args, f"{host}: {role} is not running {self.target}")
+        # Hadoop exports CLASSPATH before exec'ing Java. Inspect only that
+        # variable on the host without returning the service environment.
+        script = """from pathlib import Path
+import sys
+pid, home, role = sys.argv[1:]
+process = Path('/proc', pid)
+args = process.joinpath('cmdline').read_bytes().split(b'\\0')
+environment = process.joinpath('environ').read_bytes().split(b'\\0')
+classpath = next((item.split(b'=', 1)[1] for item in environment
+                  if item.startswith(b'CLASSPATH=')), b'')
+hdfs_path = (home + '/share/hadoop/hdfs').encode()
+valid = ('-Dproc_' + role).encode() in args and any(
+    path == hdfs_path or path.startswith(hdfs_path + b'/') for path in classpath.split(b':')
+)
+sys.exit(0 if valid else 1)
+"""
+        result = self.remote(host, "sudo", "-n", "python3", "-c", script, pid, self.new_home, role,
+                             check=False)
+        require(result.returncode == 0, f"{host}: {role} is not running {self.target}")
         return True
 
     def update_namenode(self, node, peer):
