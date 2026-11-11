@@ -22,6 +22,8 @@ from notebook_controls import operations
 SECURITY_MODE = os.environ.get('HADOOP_SECURITY_MODE', 'simple')
 assert SECURITY_MODE in ('simple', 'kerberos')
 SECURE = SECURITY_MODE == 'kerberos'
+UPGRADE = os.environ.get('HADOOP_TEST_SCENARIO') == 'hdfs-upgrade'
+assert not (UPGRADE and SECURE), 'The rolling upgrade scenario uses simple authentication'
 BASE = 'http://127.0.0.1:18888'
 SOURCES = {
     'D00': 'D00_Prerequisites for Literate Computing via Notebooks.ipynb',
@@ -30,6 +32,8 @@ SOURCES = {
     'T12a': 'T12a_Hadoop - Confirm the services are alive - ZK,HDFS,YARN,HBase,Spark.ipynb',
     'T12d': 'T12d_Hadoop - Simple Spark script for Test.ipynb',
 }
+if UPGRADE:
+    SOURCES['O12e'] = 'O12e_Hadoop - HDFS Rolling Upgrade.ipynb'
 ADDRESSES = {'nn1': '172.29.88.10', 'nn2': '172.29.88.11', 'dn1': '172.29.88.12'}
 
 
@@ -176,6 +180,8 @@ pipelining = True
         page = None
         try:
             for key, original in templates.items():
+                if key == 'O12e':
+                    check_installed_cluster(results, context, records, passed)
                 template_page = context.new_page()
                 page = template_page
                 page.goto(BASE + '/notebooks/' + key + '-template.ipynb?token=' + token)
@@ -232,6 +238,15 @@ pipelining = True
                         edited = text.replace("'https://github.com/NII-cloud-operation/Literate-computing-Hadoop.git'", "'file:///opt/test-source.git'")
                         edited = edited.replace('playbook_revision = None', 'playbook_revision = ' + repr(os.environ['LC4RI_TEST_REVISION']))
                         controls.edit(index, edited, 'Select the exact checked-out fork revision as the deployment source')
+                    if key == 'O12e' and text.startswith('source_version ='):
+                        edited = text.replace('https://archive.apache.org/dist/hadoop/common/hadoop-3.3.6/',
+                                              'http://172.29.88.1:18555/')
+                        for name, address in ADDRESSES.items():
+                            edited = edited.replace(f'ansible@{name}"', f'ansible@{address}"')
+                        controls.edit(index, edited, 'Use the test cluster SSH endpoints and verified archive mirror')
+                    if key == 'O12e' and text.startswith('finalize_confirmed ='):
+                        controls.edit(index, text.replace('finalize_confirmed = False', 'finalize_confirmed = True'),
+                                      'Finalize on the disposable test cluster after successful validation')
                     print(f'ORIGINAL PROCEDURE: {key} cell {index}', flush=True)
                     optional_diagnostic = key == 'D00' and index in (26, 32)
                     observed = controls.run(index, allow_error='RuntimeError' if optional_diagnostic else None)
@@ -258,12 +273,11 @@ pipelining = True
                 page = None
                 passed.append(key + ': original working-copy procedure completed within declared scope')
                 save('running')
-            prepare_browser_credentials()
-            check_security(results, records)
-            check_hdfs(results, context, records)
-            passed.append('HDFS real service acceptance: HA states, three DataNodes, replicated file round trip and fsck')
-            check_yarn_spark(results, context, records)
-            passed.append('Spark on YARN: original T12d reads Iris from HDFS and writes verified results to HDFS')
+            if UPGRADE:
+                check_upgrade(results)
+                passed.append('HDFS rolling upgrade: failover, live data probes, finalization and existing Spark result preserved')
+            else:
+                check_installed_cluster(results, context, records, passed)
             for key, data in originals.items():
                 assert (repo / SOURCES[key]).read_bytes() == data, 'Tracked original changed: ' + key
                 assert [source(c) for c in api(key + '-template.ipynb')['content']['cells']] == [source(c) for c in templates[key]['cells']]
@@ -283,6 +297,40 @@ pipelining = True
             finish_recording(context, results / 'browser-trace.zip', results / 'videos')
             if browser is not None:
                 browser.close()
+
+
+def check_installed_cluster(results, context, records, passed):
+    prepare_browser_credentials()
+    check_security(results, records)
+    check_hdfs(results, context, records)
+    passed.append('HDFS real service acceptance: HA states, three DataNodes, replicated file round trip and fsck')
+    check_yarn_spark(results, context, records)
+    passed.append('Spark on YARN: original T12d reads Iris from HDFS and writes verified results to HDFS')
+
+
+def check_upgrade(results):
+    working = json.loads((results / 'O12e-working.ipynb').read_text())
+    cell = next(cell for cell in working['cells'] if source(cell).startswith('import json\nprint(json.dumps(upgrade.evidence()'))
+    output = ''.join(''.join(item['text']) for item in cell['outputs'] if item['output_type'] == 'stream')
+    evidence = json.loads(output)
+    assert (evidence['source'], evidence['target'], evidence['phase']) == ('3.2.2', '3.3.6', 'finalized'), evidence
+    assert evidence['final_states'][evidence['original_standby']] == 'active', evidence
+    assert evidence['final_states'][evidence['original_active']] == 'standby', evidence
+    assert evidence['samples'] and all(sample['ok'] for sample in evidence['samples']), evidence
+    assert evidence['probes_overlapping_failover'] > 0, evidence
+    assert 'no rolling upgrade in progress' in evidence['rolling_status'], evidence
+
+    ssh = ['ssh', *shlex.split(os.environ['ANSIBLE_SSH_ARGS']), 'ansible@172.29.88.10']
+    def read_hdfs(path):
+        return subprocess.check_output([*ssh, shlex.join(['hdfs', 'dfs', '-cat', path])], timeout=90)
+    original = json.loads((results / 'yarn-spark-acceptance.json').read_text())
+    assert hashlib.sha256(read_hdfs('/dataset/iris/iris.data')).hexdigest() == original['input_sha256']
+    assert json.loads(read_hdfs('/dataset/iris/result/part-*')) == original['actual']
+    original_binary = json.loads((results / 'hdfs-acceptance.json').read_text())
+    digest = hashlib.sha256(read_hdfs('/ci/original-notebook.bin')).hexdigest()
+    assert digest == original_binary['expected_sha256']
+    evidence.update(existing_hdfs_sha256=digest, existing_spark_result=original['actual'])
+    (results / 'hdfs-upgrade-acceptance.json').write_text(json.dumps(evidence, indent=2) + '\n')
 
 
 def prepare_browser_credentials():

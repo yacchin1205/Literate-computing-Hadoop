@@ -56,12 +56,15 @@ fi
 for address in "${qemu_addresses[@]}"; do
   ssh -F "$private_dir/ssh_config" "ansible@$address" \
     'set -e; sudo apt-get update && sudo apt-get install -y python3 acl rsyslog tree lsb-release wget; sudo mkdir -p /hadoop/data /hadoop/data01; sudo chmod 0755 /hadoop /hadoop/data /hadoop/data01; timedatectl status; cat /etc/hosts'
+  if [[ "${HADOOP_TEST_SCENARIO:-}" == hdfs-upgrade ]]; then
+    ssh -F "$private_dir/ssh_config" "ansible@$address" 'sudo apt-get install -y curl'
+  fi
 done
 # A byte-identical local download mirror avoids fetching the 377 MiB tarball per VM.
 package_cache="${HDFS_E2E_PACKAGE_CACHE:-$private_dir/packages}"
 mkdir -p "$package_cache"
 python3 - "$package_cache" "$result_dir" <<'PY'
-import hashlib, json, pathlib, subprocess, sys, yaml
+import ast, hashlib, json, os, pathlib, subprocess, sys, yaml
 folder, results = map(pathlib.Path, sys.argv[1:])
 packages = [
  ('hadoop', 'https://repo.huaweicloud.com/apache/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz', 'hadoop'),
@@ -70,17 +73,33 @@ packages = [
  ('jsvc', 'https://archive.apache.org/dist/commons/daemon/source/commons-daemon-1.2.4-src.tar.gz', 'hadoop'),
 ]
 manifest=[]
+archives = []
 for key, url, defaults in packages:
  values=yaml.safe_load(pathlib.Path('playbooks/group_vars/all',defaults).read_text())
+ archives.append((key, url, values[key+'_release_checksum']))
+if os.environ.get('HADOOP_TEST_SCENARIO') == 'hdfs-upgrade':
+ notebook = json.loads(pathlib.Path('O12e_Hadoop - HDFS Rolling Upgrade.ipynb').read_text())
+ source = next(''.join(cell['source']) for cell in notebook['cells']
+               if cell['cell_type'] == 'code' and ''.join(cell['source']).startswith('source_version ='))
+ keys = {'release_url', 'release_sha512'}
+ values = {node.targets[0].id: ast.literal_eval(node.value) for node in ast.parse(source).body
+           if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id in keys}
+ url = values['release_url'].replace('https://archive.apache.org/dist/', 'https://repo.huaweicloud.com/apache/')
+ archives.append(('hadoop-upgrade', url, 'sha512:' + values['release_sha512']))
+
+def sha512(path):
+ with path.open('rb') as stream:
+  return hashlib.file_digest(stream, 'sha512').hexdigest()
+
+for key, url, expected in archives:
  filename=url.rsplit('/',1)[-1]
- expected=values[key+'_release_checksum']
  target=folder/filename
- digest=hashlib.sha512(target.read_bytes()).hexdigest() if target.is_file() else None
+ digest=sha512(target) if target.is_file() else None
  if 'sha512:'+str(digest) != expected:
   print('Download prerequisite archive:',url,flush=True)
   subprocess.run(['curl','--fail','--location','--retry','3','--connect-timeout','20',url,'-o',str(target)],check=True,timeout=900)
- digest=hashlib.sha512(target.read_bytes()).hexdigest()
- assert 'sha512:'+digest == values[key+'_release_checksum'], (key,digest)
+ digest=sha512(target)
+ assert 'sha512:'+digest == expected, (key,digest)
  manifest.append(dict(package=key,url=url,filename=filename,sha512=digest))
 (results/'package-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 (folder/'.verified').write_text('All archive SHA-512 checks passed\n')
