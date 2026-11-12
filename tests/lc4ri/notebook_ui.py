@@ -57,6 +57,10 @@ class NotebookSession:
         before = self.read_file(path)
         page = self.open_document(path)
         try:
+            page.locator('.jp-DirListing-itemText').filter(
+                has_text=re.compile('^' + re.escape(Path(path).name) + '$')).click(button='right')
+            page.locator('.lm-Menu-itemLabel').filter(has_text=re.compile('^Open With$')).hover()
+            page.get_by_role('menuitem', name='Editor', exact=True).click()
             page.locator('.jp-FileEditor .cm-content').click()
             page.keyboard.press('Control+A')
             page.keyboard.insert_text(text)
