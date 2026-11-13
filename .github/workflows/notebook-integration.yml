@@ -69,12 +69,6 @@ jobs:
       - name: Verify notebook sources after execution
         if: always()
         run: git diff --exit-code HEAD -- '*.ipynb'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: notebook-evidence-${{ matrix.variant }}
-          path: test-results/notebook-integration/
-          retention-days: 14
       - name: Upload notebook results without browser trace or video
         uses: actions/upload-artifact@v4
         if: always()
@@ -84,4 +78,10 @@ jobs:
             test-results/notebook-integration/*.json
             test-results/notebook-integration/*-working.ipynb
             test-results/notebook-integration/*.png
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-evidence-${{ matrix.variant }}
+          path: test-results/notebook-integration/
           retention-days: 14
