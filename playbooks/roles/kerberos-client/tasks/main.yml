@@ -10,7 +10,7 @@
   become: yes
   copy: src="{{ kerberos_admin_keytab_file }}" dest="{{ kerberos_admin_keytab }}" owner={{ ansible_ssh_user }} group={{ ansible_ssh_user }}
 
-- include: host_principal.yml
+- include_tasks: host_principal.yml
     
 - name: Change ssh config
   become: yes
