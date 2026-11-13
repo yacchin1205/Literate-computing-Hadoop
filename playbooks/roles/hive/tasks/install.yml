@@ -1,0 +1,59 @@
+- name: create_hive_groups
+  become: yes
+  group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid | default(omit) }}"
+  with_items:
+    - { name: hive, gid: "{{ hive_gid | default(omit) }}" }
+    - { name: hadoop, gid: "{{ hadoop_gid | default(omit) }}" }
+
+- name: create_hive_user
+  become: yes
+  user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid | default(omit) }}"
+    group: "{{ item.name }}"
+    groups:
+      - hadoop
+  with_items:
+    - { name: hive, uid: "{{ hive_uid | default(omit) }}" }
+
+- name: prepare_package_dir
+  become: yes
+  file:
+    path: "{{ hive_dir }}/package"
+    state: directory
+
+- name: download_hive_package
+  become: yes
+  get_url:
+    url: "{{ hive_release_url }}"
+    dest: "{{ hive_dir }}/package/{{ hive_package_filename }}.tar.gz"
+    checksum: "{{ hive_release_checksum }}"
+
+- name: extract_hive_package
+  become: yes
+  unarchive:
+    src: "{{ hive_dir }}/package/{{ hive_package_filename }}.tar.gz"
+    dest: "{{ hive_dir }}"
+    remote_src: yes
+
+- name: link_latest_package
+  become: yes
+  file:
+    path: "{{ hive_dir }}/current"
+    src: "{{ hive_dir }}/{{ hive_package_filename }}"
+    state: link
+
+- name: prepare_commands
+  become: yes
+  template:
+    src: "command-wrapper.sh.j2"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '755'
+    owner: root
+    group: root
+  with_items:
+  - hive
+  - beeline
+  - schematool
