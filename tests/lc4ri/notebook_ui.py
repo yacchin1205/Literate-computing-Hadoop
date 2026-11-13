@@ -72,7 +72,7 @@ class NotebookSession:
         finally:
             page.close()
 
-    def run_notebook(self, filename, before_cell=None):
+    def run_notebook(self, filename, before_cell=None, skip_cells=()):
         path = self.repo / filename
         key = path.stem.split('_', 1)[0]
         raw = path.read_bytes()
@@ -107,10 +107,15 @@ class NotebookSession:
             self.menu_command(self.page, 'Edit', 'editmenu:clear-all')
             assert self.page.evaluate("window.jupyterapp.shell.currentWidget.context.model.toJSON().cells.filter(c => c.cell_type === 'code').every(c => c.outputs.length === 0)")
             controls = operations(self.page, key, reference, self.records, timeout=1200000)
-            self.coverage[filename] = dict(attempted=[], completed=[])
+            self.coverage[filename] = dict(attempted=[], completed=[], skipped=[])
             for index, cell in enumerate(reference['cells']):
                 text = source(cell)
                 if cell['cell_type'] != 'code' or not text.strip():
+                    continue
+                if index in skip_cells:
+                    self.coverage[filename]['skipped'].append(index)
+                    self.records.append(dict(notebook=key, cell=index, action='skip', source=text,
+                                             reason='Run Spark before investigating the known MapReduce failure'))
                     continue
                 if before_cell is not None:
                     before_cell(self, controls, index, text)
@@ -135,7 +140,8 @@ class NotebookSession:
 
     def save_report(self, error):
         (self.results / 'source-hashes.json').write_text(json.dumps(self.hashes, indent=2) + '\n')
-        report = dict(status='passed' if error is None else 'failed', error=str(error) if error is not None else None,
+        partial = any(item['skipped'] for item in self.coverage.values())
+        report = dict(status=('partial' if partial else 'passed') if error is None else 'failed', error=str(error) if error is not None else None,
                       completed=self.completed, coverage=self.coverage, operations=self.records)
         (self.results / 'results.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
 
