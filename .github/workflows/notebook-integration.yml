@@ -46,6 +46,7 @@ jobs:
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
           key: notebook-archives-apache-v1-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark', 'playbooks/group_vars/all/hbase', 'playbooks/group_vars/all/hive', 'playbooks/group_vars/all/tez') }}
+          restore-keys: notebook-archives-apache-v1-
       - name: Run notebooks through the browser
         run: bash tests/lc4ri/run.sh
       - name: Check verified package cache
