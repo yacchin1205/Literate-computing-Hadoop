@@ -1,0 +1,4 @@
+tez_release_url: 'https://archive.apache.org/dist/tez/0.10.1/apache-tez-0.10.1-bin.tar.gz'
+tez_release_checksum: 'sha512:e13dbb2ec894b389625670bf5ec497189071c18c0000348e3985acd4c89cf9a53d9f7395e3404ddfc261bc5ad5c8f1159f101b239cc65a6f1893840c70cd676d'
+tez_package_filename: 'apache-tez-0.10.1-bin'
+tez_dir: '/opt/tez'

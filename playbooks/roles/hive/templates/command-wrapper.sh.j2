@@ -1,0 +1,7 @@
+#!/bin/bash
+export JAVA_HOME={{ java_home }}
+export HADOOP_HOME={{ hadoop_dir }}/current
+export HADOOP_CONF_DIR=/etc/hadoop/conf
+export HIVE_HOME={{ hive_dir }}/current
+export HIVE_CONF_DIR=/etc/hive/conf
+exec {{ hive_dir }}/current/bin/{{ item }} "$@"

@@ -1,0 +1,47 @@
+- name: prepare_package_dir
+  become: yes
+  file: path={{ tez_dir }}/package state=directory
+
+- name: download_tez_package
+  become: yes
+  get_url:
+    url: "{{ tez_release_url }}"
+    dest: "{{ tez_dir }}/package/{{ tez_package_filename }}.tar.gz"
+    checksum: "{{ tez_release_checksum }}"
+
+- name: extract_tez_package
+  become: yes
+  unarchive:
+    src: "{{ tez_dir }}/package/{{ tez_package_filename }}.tar.gz"
+    dest: "{{ tez_dir }}"
+    remote_src: yes
+
+- name: link_latest_package
+  become: yes
+  file: path={{ tez_dir }}/current src={{ tez_dir }}/{{ tez_package_filename }} state=link
+
+- name: check_tez_packages_on_HDFS
+  become: yes
+  become_user: hdfs
+  command: hdfs dfs -test -e {{ tez_hdfs_dir }}/tez.tar.gz
+  register: check_tez_installed_on_hdfs
+  changed_when: false
+  failed_when: check_tez_installed_on_hdfs.rc not in [0, 1]
+
+- name: copy_tez_packages_to_HDFS
+  become: yes
+  become_user: hdfs
+  command: hdfs dfs -copyFromLocal {{ tez_dir }}/current/share/tez.tar.gz {{ tez_hdfs_dir }}/tez.tar.gz
+  when: check_tez_installed_on_hdfs.rc == 1
+
+- name: change_owner_of_tez_packages
+  become: yes
+  become_user: hdfs
+  command: hdfs dfs -chown hdfs:hadoop {{ tez_hdfs_dir }}/tez.tar.gz
+  when: check_tez_installed_on_hdfs.rc == 1
+
+- name: change_mode_of_tez_packages
+  become: yes
+  become_user: hdfs
+  command: hdfs dfs -chmod 555 {{ tez_hdfs_dir }}/tez.tar.gz
+  when: check_tez_installed_on_hdfs.rc == 1
