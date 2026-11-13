@@ -1,3 +1,9 @@
+spark_release_url: 'https://ftp.jaist.ac.jp/pub/apache/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz'
+spark_release_checksum: 'sha512:e90b31e58f6d95a42900ba4d288261d71f6c19fa39c1cb71862b792d1b5564941a320227f6ab0e09d946f16b8c1969ed2dea2a369ec8f9d2d7099189234de1be'
+spark_package_filename: 'spark-3.1.1-bin-hadoop3.2'
+
+spark_dir: '/opt/spark'
+
 spark_md5sum: '303624669c204ca78188e647ea0d899e'
 spark_tmp_path: '/tmp'
 spark_history_server_port: '18080'

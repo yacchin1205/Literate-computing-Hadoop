@@ -47,7 +47,7 @@
 
 <property>
   <name>yarn.http.policy</name>
-  <value>HTTPS_ONLY</value>
+  <value>{{ yarn_http_policy }}</value>
 </property>
 
 {% for host in hadoop_resourcemanager_servers %}
@@ -111,7 +111,7 @@
 
 {% for host in hadoop_resourcemanager_servers %}
 <property>
-  <name>yarn.resourcemanager.webapp.address.{{ host }}</name>
+  <name>yarn.resourcemanager.webapp.{% if kerberos_realm is defined %}https.{% endif %}address.{{ host }}</name>
   <value>{{ host }}:{{ yarn_rm_webapp_port }}</value>
 </property>
 {% endfor %}
@@ -164,18 +164,6 @@
 <property>
   <name>yarn.nodemanager.aux-services.mapreduce_shuffle.class</name>
   <value>org.apache.hadoop.mapred.ShuffleHandler</value>
-</property>
-
-<property>
-  <name>yarn.application.classpath</name>
-  <value>
-     /usr/hdp/current/hadoop-client/*,/usr/hdp/current/hadoop-client/lib/*,
-     /usr/hdp/current/hadoop-hdfs-client/*,/usr/hdp/current/hadoop-hdfs-client/lib/*,
-     /usr/hdp/current/hadoop-mapreduce-client/*,/usr/hdp/current/hadoop-mapreduce-client/lib/*,
-     /usr/hdp/current/hadoop-yarn-client/*,/usr/hdp/current/hadoop-yarn-client/lib/*,
-     /etc/tez/conf,
-     /usr/hdp/current/tez-client/*,user/hdp/current/tez-client/lib/*
-  </value>
 </property>
 
 {% if hadoop_timelineservice_server is defined %}
