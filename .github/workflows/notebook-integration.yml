@@ -41,6 +41,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils curl default-jre-headless
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo fallocate -l 8G /swapfile-notebook-ci
+          sudo chmod 600 /swapfile-notebook-ci
+          sudo mkswap /swapfile-notebook-ci
+          sudo swapon /swapfile-notebook-ci
+          free -h
       - uses: actions/cache/restore@v4
         id: packages
         with:
