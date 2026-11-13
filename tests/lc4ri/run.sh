@@ -23,7 +23,12 @@ cleanup() {
     timeout 20s ssh -F "$private_dir/ssh_config" "ansible@$address" \
       'sudo journalctl --no-pager; sudo cat /var/log/hadoop-hdfs/*.log /var/log/zookeeper/* /var/log/hadoop-yarn/*.log /var/log/hadoop-mapreduce/*.log /var/log/hbase/* /var/log/spark/*; sudo systemctl --no-pager --full status hadoop-yarn-resourcemanager hadoop-yarn-nodemanager hbase-master hbase-regionserver spark-history-server; free -m' \
       > "$result_dir/$address-services.log" 2>&1
-    if (( result != 0 )); then cat "$result_dir/$address-services.log"; fi
+    if (( result != 0 )); then
+      cat "$result_dir/$address-services.log"
+      timeout 20s ssh -F "$private_dir/ssh_config" "ansible@$address" 'sudo python3 -' \
+        < tests/lc4ri/container_classpath.py > "$result_dir/$address-container-classpath.jsonl" 2>&1
+      cat "$result_dir/$address-container-classpath.jsonl"
+    fi
   done
   docker rm -f "$controller"
   [[ -z "$mirror_pid" ]] || kill "$mirror_pid"
