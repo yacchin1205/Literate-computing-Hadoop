@@ -1,4 +1,4 @@
-name: Hadoop Spark investigation
+name: Hadoop notebook integration
 on:
   pull_request:
   workflow_dispatch:
