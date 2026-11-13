@@ -14,6 +14,9 @@ PACKAGES = {
     'zookeeper': ('zookeeper_server', 'zookeeper/'),
     'spark': ('spark', 'spark/'),
     'jsvc': ('hadoop', 'commons/daemon/'),
+    'hbase': ('hbase', 'hbase/'),
+    'hive': ('hive', 'hive/'),
+    'tez': ('tez', 'tez/'),
 }
 
 

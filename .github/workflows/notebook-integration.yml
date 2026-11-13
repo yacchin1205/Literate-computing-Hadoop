@@ -45,7 +45,7 @@ jobs:
         id: packages
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
-          key: notebook-archives-apache-v1-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}
+          key: notebook-archives-apache-v1-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark', 'playbooks/group_vars/all/hbase', 'playbooks/group_vars/all/hive', 'playbooks/group_vars/all/tez') }}
       - name: Run notebooks through the browser
         run: bash tests/lc4ri/run.sh
       - name: Check verified package cache
@@ -59,7 +59,7 @@ jobs:
         if: always() && steps.verified.outputs.complete == 'true' && steps.packages.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.hdfs-package-cache
-          key: notebook-archives-apache-v1-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark') }}
+          key: notebook-archives-apache-v1-${{ hashFiles('playbooks/group_vars/all/hadoop', 'playbooks/group_vars/all/zookeeper_server', 'playbooks/group_vars/all/spark', 'playbooks/group_vars/all/hbase', 'playbooks/group_vars/all/hive', 'playbooks/group_vars/all/tez') }}
       - name: Verify notebook sources after execution
         if: always()
         run: git diff --exit-code HEAD -- '*.ipynb'
