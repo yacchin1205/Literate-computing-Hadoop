@@ -16,6 +16,7 @@ cleanup() {
   set +e
   docker logs "$controller" > "$result_dir/controller.log" 2>&1
   docker cp "$controller:/home/jovyan/work/.log" "$result_dir/lc-logs"
+  docker cp "$controller:/home/jovyan/work/ansible.log" "$result_dir/ansible.log"
   docker cp "$controller:/home/jovyan/work/inventory" "$result_dir/"
   docker cp "$controller:/home/jovyan/work/group_vars" "$result_dir/"
   for address in "${qemu_addresses[@]}"; do

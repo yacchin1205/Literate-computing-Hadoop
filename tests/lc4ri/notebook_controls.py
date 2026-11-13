@@ -72,6 +72,10 @@ def operations(page, key, reference, records, timeout=120000):
         errors = [output for output in observed['outputs'] if output['output_type'] == 'error']
         records.append(dict(notebook=key, cell=index, action='Shift+Enter',
                             errors=errors, execution_count=observed['count']))
+        if errors:
+            for output in observed['outputs']:
+                if output['output_type'] == 'stream':
+                    print(output['text'], end='', flush=True)
         assert not errors, errors
         assert observed['frozen'] and observed['readOnly'], observed
         return observed
