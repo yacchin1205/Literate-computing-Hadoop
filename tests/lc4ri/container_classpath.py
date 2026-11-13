@@ -15,3 +15,12 @@ for launcher in Path('/hadoop/tmp').rglob('launch_container.sh'):
                 fields[name] = value
     print(json.dumps({'launcher': str(launcher), 'environment': fields,
                       'default_logging_config': '-Dlog4j.configuration=container-log4j.properties' in text}))
+
+for stdout in Path('/var/log/hadoop-yarn/userlogs').glob('application_*/container_*/stdout'):
+    lines = stdout.read_text().splitlines()
+    print(json.dumps({'container_stdout': str(stdout), 'logging_initialization': {
+        'resource_found': any(line.startswith('log4j: Using URL [') for line in lines),
+        'standard_resource_missing': 'log4j: Could not find resource: [container-log4j.properties].' in lines,
+        'configuration_finished': 'log4j: Finished configuring.' in lines,
+        'container_appender_configured': 'log4j: Parsed "CLA" options.' in lines,
+    }}))
