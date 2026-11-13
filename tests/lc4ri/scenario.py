@@ -53,7 +53,8 @@ def enter_inventory_inputs(session, controls, index, text):
         values = yaml.safe_load(session.read_file(path))
         manifest = json.loads((session.results / 'package-manifest.json').read_text())
         values.update({item['package'] + '_release_url': MIRROR + '/' + item['filename'] for item in manifest})
-        values.update(resourcemanager_heap_size='256', nodemanager_heap_size='256',
+        values.update(mapreduce_am_command_opts='-Xmx768m -Dlog4j.debug=true',
+                      resourcemanager_heap_size='256', nodemanager_heap_size='256',
                       job_historyserver_heapsize='256', timelineserver_heap_size='256',
                       spark_daemon_memory='256m', namenode_total_java_heap='512m', namenode_heap_size='512',
                       datanode_heap_size='256', journalnode_heap_size='128', zkfc_heap_size='128',
