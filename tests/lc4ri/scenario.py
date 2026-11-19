@@ -52,7 +52,7 @@ def enter_inventory_inputs(session, controls, index, text):
         path = 'group_vars/hadoop_all_testcluster'
         values = yaml.safe_load(session.read_file(path))
         manifest = json.loads((session.results / 'package-manifest.json').read_text())
-        values.update({item['package'] + '_release_url': MIRROR + '/' + item['filename'] for item in manifest})
+        values.update({item['package'] + '_release_url': MIRROR + '/' + item['filename'] for item in manifest if not item['package'].endswith('_upgrade')})
         values.update(resourcemanager_heap_size='256', nodemanager_heap_size='256',
                       job_historyserver_heapsize='256', timelineserver_heap_size='256',
                       namenode_total_java_heap='512m', namenode_heap_size='512',
@@ -95,3 +95,52 @@ pipelining = True
     for value in ('data:class', 'value=Iris-setosa', 'data:sepal_length', 'value=5.4'):
         assert value in hbase_output, hbase_output
     run_notebook('T12d_Hadoop - Simple Spark script for Test.ipynb')
+    if os.environ.get('HADOOP_TEST_SCENARIO') == 'upgrade':
+        run_upgrade(session)
+
+
+def run_upgrade(session):
+    from upgrade_observer import UpgradeObserver
+    from upgrade_inputs import enter_upgrade_inputs, inspect_upgrade_output
+    session.upgrade = {}
+    observer = UpgradeObserver(session.results)
+    run_notebook = session.run_notebook
+    try:
+        observer.begin()
+        run_notebook('O12e_Hadoop - Plan and prepare upgrade.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output)
+        session.upgrade_zookeepers = set()
+        run_notebook('O12f_Hadoop - Upgrade ZooKeeper.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='first')
+        run_notebook('O12f_Hadoop - Upgrade ZooKeeper.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='second')
+        run_notebook('O12f_Hadoop - Upgrade ZooKeeper.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='third')
+        run_notebook('O12g_Hadoop - Rolling upgrade NameNodes.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output)
+        session.upgrade_host = 'nn1'
+        run_notebook('O12h_Hadoop - Upgrade Hadoop node.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='nn1')
+        session.upgrade_host = 'nn2'
+        run_notebook('O12h_Hadoop - Upgrade Hadoop node.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='nn2')
+        session.upgrade_host = 'dn1'
+        run_notebook('O12h_Hadoop - Upgrade Hadoop node.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='dn1')
+        run_notebook('O12i_Hadoop - Upgrade HBase and Spark.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output)
+        run_notebook('T12d_Hadoop - Simple Spark script for Test.ipynb', before_cell=enter_post_upgrade_spark_inputs, instance='upgraded')
+        run_notebook('O12j_Hadoop - Verify and finalize upgrade.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output)
+        session.upgrade_host = 'nn1'
+        run_notebook('O12k_Hadoop - Update platform packages.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='nn1')
+        session.upgrade_host = 'nn2'
+        run_notebook('O12k_Hadoop - Update platform packages.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='nn2')
+        session.upgrade_host = 'dn1'
+        run_notebook('O12k_Hadoop - Update platform packages.ipynb', before_cell=enter_upgrade_inputs, after_cell=inspect_upgrade_output, instance='dn1')
+        run_notebook('T12a_Hadoop - Confirm the services are alive - ZK,HDFS,YARN,HBase,Spark.ipynb', instance='upgraded')
+        run_notebook('T12d_Hadoop - Simple Spark script for Test.ipynb', before_cell=enter_post_upgrade_spark_inputs, instance='platform-updated')
+    finally:
+        observer.finish()
+    observer.verify(session)
+
+
+def enter_post_upgrade_spark_inputs(session, controls, index, text):
+    if text.startswith("hdfs_dataset_dir ="):
+        suffix = 'platform-updated' if session.upgrade.get('platform_updates') else 'upgraded'
+        controls.edit(index, f"hdfs_dataset_dir = '/dataset/iris-{suffix}'\nhadoop_client_dir = '~/iris-{suffix}'\n(hdfs_dataset_dir, hadoop_client_dir)\n",
+                      'Select a fresh upload directory and retain the pre-upgrade input')
+    if text.startswith('%%writefile') and 'SimpleApp.py' in text:
+        suffix = 'platform-updated' if session.upgrade.get('platform_updates') else 'upgraded'
+        controls.edit(index, text.replace('/dataset/iris/iris.data', f'/dataset/iris-{suffix}/iris.data'),
+                      'Use the selected input directory in the sample application')

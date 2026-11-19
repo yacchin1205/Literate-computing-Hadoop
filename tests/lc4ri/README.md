@@ -51,3 +51,26 @@ procedure for review.
 
 Browser and QEMU helpers are adapted from
 [CoursewareHub-LC_deploy](https://github.com/yacchin1205/CoursewareHub-LC_deploy/pull/1).
+
+
+The `upgrade-basic` and `upgrade-security` matrices deploy the configured releases with D12,
+then execute the O12e–O12k procedures: prepare and pause application use, upgrade
+ZooKeeper one peer at a time, roll the NameNodes, switch each host's shared Hadoop
+release, upgrade HBase/Spark, verify data and finalize, then update OS-provided
+Java/cgroups/Kerberos packages and restart their consumers one host at a time. jsvc is rebuilt and switched
+with each Hadoop host. OS packages whose candidate equals the installed version
+remain unchanged; this does not test an OS distribution migration.
+
+Each repeated host procedure has its own working notebook and coverage. The test
+enters operator inputs and edits group_vars through the notebook UI. Every nonempty
+code cell runs. Existing service definitions and shared release pointers are retained.
+New playbooks stage packages and switch the existing release pointers.
+
+An independent old-version HDFS client records writes and reads through ZooKeeper,
+HDFS, application and platform-package updates, including planned NameNode failovers. Acceptance
+checks preserve pre-upgrade HDFS data, verify versions and replication, and require
+finalization and a return to the existing systemd services. Observation continues
+through the host-by-host platform service restarts and final workload checks.
+HBase is tested for pre-upgrade data retention and new writes. MapReduce and Spark
+run real YARN jobs after the shared Hadoop release changes; T12a and T12d run again
+after platform service restarts. Full outputs, working notebooks and source hashes are saved.
