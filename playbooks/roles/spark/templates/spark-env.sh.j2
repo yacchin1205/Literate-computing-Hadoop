@@ -62,6 +62,10 @@ export SPARK_CONF_DIR=/etc/spark/conf
 export SPARK_LOG_DIR={{ spark_log_dir }}
 
 {% if kerberos_realm is defined %}
+{% if hadoop_package_filename == 'hadoop-3.5.0' %}
+# Hadoop 3.5.0 packages the relocated Jersey classes for Timeline tokens here.
+export SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH:+${SPARK_DIST_CLASSPATH}:}${HADOOP_HOME}/share/hadoop/client/hadoop-client-minicluster-3.5.0.jar"
+{% else %}
 # Spark's Hadoop bundle omits the Jersey 1 client used to obtain YARN
 # Timeline delegation tokens. Reuse the jars from the installed Hadoop.
 for timeline_jar in "$HADOOP_HOME"/share/hadoop/common/lib/jersey-core-*.jar \
@@ -71,6 +75,7 @@ for timeline_jar in "$HADOOP_HOME"/share/hadoop/common/lib/jersey-core-*.jar \
     fi
 done
 unset timeline_jar
+{% endif %}
 
 export SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.kerberos.enabled=true "
 export SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.kerberos.principal=spark/{{ ansible_fqdn }}@{{ kerberos_realm }} "
