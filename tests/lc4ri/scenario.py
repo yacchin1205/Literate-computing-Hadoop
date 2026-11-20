@@ -7,6 +7,7 @@ import re
 import shlex
 import subprocess
 import uuid
+from pathlib import Path
 
 import yaml
 
@@ -55,6 +56,8 @@ def enter_inventory_inputs(session, controls, index, text):
         path = 'group_vars/hadoop_all_testcluster'
         values = yaml.safe_load(session.read_file(path))
         manifest = json.loads((session.results / 'package-manifest.json').read_text())
+        if os.environ.get('HADOOP_TEST_SCENARIO') == 'upgrade':
+            values.update(yaml.safe_load(Path(__file__).with_name('upgrade-from-3.2.2.yml').read_text()))
         values.update({item['package'] + '_release_url': MIRROR + '/' + item['filename'] for item in manifest if not item['package'].endswith('_upgrade')})
         if os.environ.get('HADOOP_TEST_SCENARIO') == 'upgrade':
             hadoop = next(item for item in manifest if item['package'] == 'hadoop')

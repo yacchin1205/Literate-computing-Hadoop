@@ -1,5 +1,5 @@
-hbase_release_url: 'https://archive.apache.org/dist/hbase/2.4.2/hbase-2.4.2-bin.tar.gz'
-hbase_release_checksum: 'sha512:1c3399ecc0f4e6eab990f5a1a6b869b09850e8bd94eabe5fcfab62cce83b03680cc00fe6d601d5c0a356a03d08d56556e214198ebe6333e819cced57e2fecd9b'
-hbase_package_filename: 'hbase-2.4.2'
+hbase_release_url: 'https://archive.apache.org/dist/hbase/3.0.0/hbase-byo-hadoop-3.0.0-bin.tar.gz'
+hbase_release_checksum: 'sha512:51fd4f625630dcdfda0244c0992187f4284c9270f94a109fa889bdf890a718937bc9dee79f2a9d456b917e1a033e13937bfcdb3baa6e31b55a25e090f7f38a52'
+hbase_package_filename: 'hbase-byo-hadoop-3.0.0'
 
 hbase_dir: '/opt/hbase'

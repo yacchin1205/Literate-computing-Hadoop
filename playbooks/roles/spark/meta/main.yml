@@ -1,5 +1,5 @@
 dependencies:
   - {role: site-defaults}
-  - {role: java11}
+  - {role: java}
   - {role: spark_user}
 

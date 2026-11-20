@@ -31,6 +31,8 @@ def download(cache, results):
         packages.update({name + '_upgrade': value for name, value in PACKAGES.items()})
     for package, (defaults, project) in packages.items():
         values = yaml.safe_load(Path('playbooks/group_vars/all', defaults).read_text())
+        if os.environ.get('HADOOP_TEST_SCENARIO') == 'upgrade':
+            values.update(yaml.safe_load(Path(__file__).with_name('upgrade-from-3.2.2.yml').read_text()))
         if package == 'hadoop' and os.environ.get('HADOOP_TEST_SCENARIO') == 'upgrade':
             version = os.environ['HADOOP_UPGRADE_FROM_VERSION']
             values = {'hadoop_release_url': f'https://archive.apache.org/dist/hadoop/common/hadoop-{version}/hadoop-{version}.tar.gz',

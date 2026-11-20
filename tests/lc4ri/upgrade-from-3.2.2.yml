@@ -1,0 +1,13 @@
+java_version: 11
+zookeeper_release_url: 'https://ftp.jaist.ac.jp/pub/apache/zookeeper/zookeeper-3.6.2/apache-zookeeper-3.6.2-bin.tar.gz'
+zookeeper_release_checksum: 'sha512:caff5111bb6876b7124760bc006e6fa2523efa54b99321a3c9cd8192ea0d5596abc7d70a054b1aac9b20a411407dae7611c7aba870c23bff28eb1643ba499199'
+zookeeper_package_filename: 'apache-zookeeper-3.6.2-bin'
+hbase_release_url: 'https://archive.apache.org/dist/hbase/2.4.2/hbase-2.4.2-bin.tar.gz'
+hbase_release_checksum: 'sha512:1c3399ecc0f4e6eab990f5a1a6b869b09850e8bd94eabe5fcfab62cce83b03680cc00fe6d601d5c0a356a03d08d56556e214198ebe6333e819cced57e2fecd9b'
+hbase_package_filename: 'hbase-2.4.2'
+spark_release_url: 'https://ftp.jaist.ac.jp/pub/apache/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz'
+spark_release_checksum: 'sha512:e90b31e58f6d95a42900ba4d288261d71f6c19fa39c1cb71862b792d1b5564941a320227f6ab0e09d946f16b8c1969ed2dea2a369ec8f9d2d7099189234de1be'
+spark_package_filename: 'spark-3.1.1-bin-hadoop3.2'
+jsvc_release_url: 'https://mirrors.ocf.berkeley.edu/apache//commons/daemon/source/commons-daemon-1.2.4-src.tar.gz'
+jsvc_release_checksum: 'sha512:36e9cb3153ca763bfaaa71575a1584610254f1ce4c0f666ff7bbc628311405430536413525c9c777e4364eea62a247fb084750d837e84a62d9fce92a61909d56'
+jsvc_package_filename: 'commons-daemon-1.2.4-src'
