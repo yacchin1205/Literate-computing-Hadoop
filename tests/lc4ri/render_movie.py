@@ -73,6 +73,6 @@ def render(results, variant):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--result-dir', type=Path, required=True)
-    parser.add_argument('--variant', required=True, choices=['basic', 'security', 'upgrade-basic', 'upgrade-security'])
+    parser.add_argument('--variant', required=True, choices=['basic', 'security', 'upgrade-basic', 'upgrade-security', 'ca-renewal'])
     args = parser.parse_args()
     render(args.result_dir, args.variant)

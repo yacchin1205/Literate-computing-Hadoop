@@ -13,8 +13,9 @@ results. Software archives and checksums come from the repository's deployment
 defaults and are served through a local mirror backed by Apache Archive.
 Archived packages use parallel range downloads followed by SHA-512 verification.
 The [guest image](guests/guest-image.env) supplies the cgroups v1 environment
-expected by the deployment roles. The security fixture supplies test TLS files;
-Kerberos service and client prerequisites remain part of the deployment procedure.
+expected by the deployment roles. In Kerberos variants, D11a creates a root CA and
+issues the guest HTTPS certificates before D12. Kerberos service and client
+prerequisites remain part of the deployment procedure.
 
 Run on a disposable x86-64 Linux host with Docker, QEMU, cloud-image-utils,
 SSH, sudo, FFmpeg, DejaVu and Noto CJK fonts, using the prerequisites in
@@ -26,6 +27,7 @@ python3 -m playwright install --with-deps chromium
 install -Dm644 tests/lc4ri/fonts.conf ~/.config/fontconfig/fonts.conf
 HADOOP_SECURITY_MODE=simple bash tests/lc4ri/run.sh
 HADOOP_SECURITY_MODE=kerberos bash tests/lc4ri/run.sh
+HADOOP_SECURITY_MODE=kerberos HADOOP_TEST_SCENARIO=ca-renewal bash tests/lc4ri/run.sh
 ```
 
 Results in `test-results/notebook-integration` are uploaded separately for each
@@ -51,6 +53,15 @@ procedure for review.
 
 Browser and QEMU helpers are adapted from
 [CoursewareHub-LC_deploy](https://github.com/yacchin1205/CoursewareHub-LC_deploy/pull/1).
+
+The `ca-renewal` matrix runs O12l against the deployed cluster. It introduces
+old/new CA trust, reissues host keys and certificates, and removes the old CA.
+Independent TLS handshakes verify all Hadoop HTTPS endpoints before and after
+renewal. Java truststores are checked at both trust transitions, host public keys
+must change, and the old CA must fail to validate the updated endpoints. T12a,
+T12c and T12d then check services, HBase operations and a YARN Spark job.
+Public CA certificates and acceptance reports are saved with the results. Private
+keys remain in the disposable controller outside the notebook artifact directory.
 
 
 The `upgrade-basic` and `upgrade-security` matrices deploy the configured releases with D12,
