@@ -19,6 +19,9 @@ jobs:
             authentication: simple
           - variant: security
             authentication: kerberos
+          - variant: ca-renewal
+            authentication: kerberos
+            scenario: ca-renewal
           - variant: upgrade-basic
             authentication: simple
             scenario: upgrade
@@ -145,6 +148,24 @@ jobs:
           path: |
             test-results/notebook-integration/movies/D12.mp4
             test-results/notebook-integration/videos/D12/
+          retention-days: 14
+      - name: Upload certificate preparation video
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.authentication == 'kerberos'
+        with:
+          name: notebook-video-${{ matrix.variant }}-D11a
+          path: |
+            test-results/notebook-integration/movies/D11a.mp4
+            test-results/notebook-integration/videos/D11a/
+          retention-days: 14
+      - name: Upload CA renewal video
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.scenario == 'ca-renewal'
+        with:
+          name: notebook-video-${{ matrix.variant }}-O12l
+          path: |
+            test-results/notebook-integration/movies/O12l.mp4
+            test-results/notebook-integration/videos/O12l/
           retention-days: 14
       - name: Upload T12a video
         uses: actions/upload-artifact@v4

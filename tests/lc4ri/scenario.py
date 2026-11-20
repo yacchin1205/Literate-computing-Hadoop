@@ -7,6 +7,8 @@ import re
 
 import yaml
 
+from certificate_acceptance import HTTPS_ENDPOINTS, capture_certificates, observe_truststores, verify_ca_renewal
+
 MIRROR = 'http://172.29.88.1:18555'
 ADDRESSES = {'nn1': '172.29.88.10', 'nn2': '172.29.88.11', 'dn1': '172.29.88.12'}
 
@@ -85,18 +87,58 @@ pipelining = True
     run_notebook = session.run_notebook
     run_notebook('D00_Prerequisites for Literate Computing via Notebooks.ipynb')
     run_notebook('D10_Hadoop - Set! Inventory.ipynb', before_cell=enter_inventory_inputs)
+    if mode == 'kerberos':
+        run_notebook('D11a_Hadoop - Prepare CA and HTTPS certificates.ipynb', before_cell=enter_certificate_inputs)
     run_notebook('D12_Hadoop - Ready! on CentOS6 - ZK,HDFS,YARN,HBase,Hive,Spark.ipynb')
     run_notebook('T12a_Hadoop - Confirm the services are alive - ZK,HDFS,YARN,HBase,Spark.ipynb')
     run_notebook('T12c_Hadoop - Simple HBase query for Test.ipynb')
-    hbase_book = json.loads((session.results / 'T12c-working.ipynb').read_text())
-    hbase_output = '\n'.join(''.join(output.get('text', []))
-                             for cell in hbase_book['cells']
-                             for output in cell.get('outputs', []))
-    for value in ('data:class', 'value=Iris-setosa', 'data:sepal_length', 'value=5.4'):
-        assert value in hbase_output, hbase_output
+    verify_hbase_query(session.results / 'T12c-working.ipynb')
     run_notebook('T12d_Hadoop - Simple Spark script for Test.ipynb')
     if os.environ.get('HADOOP_TEST_SCENARIO') == 'upgrade':
         run_upgrade(session)
+    if os.environ.get('HADOOP_TEST_SCENARIO') == 'ca-renewal':
+        session.ca_before = capture_certificates(session.results, 'before', ADDRESSES)
+        session.ca_trust_phases = []
+        session.ca_addresses = ADDRESSES
+        run_notebook('O12l_Hadoop - Renew CA certificates.ipynb', before_cell=enter_certificate_inputs, after_cell=observe_truststores)
+        run_notebook('T12a_Hadoop - Confirm the services are alive - ZK,HDFS,YARN,HBase,Spark.ipynb', instance='ca-renewed')
+        run_notebook('T12c_Hadoop - Simple HBase query for Test.ipynb', instance='ca-renewed')
+        verify_hbase_query(session.results / 'T12c-ca-renewed-working.ipynb')
+        run_notebook('T12d_Hadoop - Simple Spark script for Test.ipynb', before_cell=enter_ca_spark_inputs, instance='ca-renewed')
+        verify_ca_renewal(session)
+
+
+def verify_hbase_query(path):
+    book = json.loads(path.read_text())
+    output = '\n'.join(''.join(item.get('text', []))
+                       for cell in book['cells'] for item in cell.get('outputs', []))
+    for value in ('data:class', 'value=Iris-setosa', 'data:sepal_length', 'value=5.4'):
+        assert value in output, output
+
+
+def enter_certificate_inputs(session, controls, index, text):
+    if text.startswith('certificate_hosts ='):
+        controls.edit(index, 'certificate_hosts = ' + repr({address: name for name, address in ADDRESSES.items()}) + '\ncertificate_hosts\n',
+                      'Select the guest addresses and their DNS names')
+    if text.startswith('pki_dir ='):
+        controls.edit(index, "pki_dir = '/tmp/lc4ri-pki-initial'\npki_dir\n", 'Select private CA storage outside notebook artifacts')
+    if text.startswith('old_ca_certificate_file ='):
+        controls.edit(index, "old_ca_certificate_file = '/tmp/lc4ri-pki-initial/ca.crt'\npki_dir = '/tmp/lc4ri-pki-replacement'\n(old_ca_certificate_file, pki_dir)\n",
+                      'Select the current public CA certificate and new private CA storage')
+    if text.startswith('https_endpoints ='):
+        controls.edit(index, 'https_endpoints = ' + repr(HTTPS_ENDPOINTS) + '\nhttps_endpoints\n', 'Select all guest Hadoop HTTPS services')
+    if "getpass.getpass('CA key password: ')" in text:
+        controls.edit(index, text.replace("getpass.getpass('CA key password: ')", "configuration['https_keystore_pass']"),
+                      'Supply the disposable CA password without recording it in the source')
+
+
+def enter_ca_spark_inputs(session, controls, index, text):
+    if text.startswith('hdfs_dataset_dir ='):
+        controls.edit(index, "hdfs_dataset_dir = '/dataset/iris-ca-renewed'\nhadoop_client_dir = '~/iris-ca-renewed'\n(hdfs_dataset_dir, hadoop_client_dir)\n",
+                      'Use a fresh upload directory and retain the existing input')
+    if text.startswith('%%writefile') and 'SimpleApp.py' in text:
+        controls.edit(index, text.replace('/dataset/iris/iris.data', '/dataset/iris-ca-renewed/iris.data'),
+                      'Read the selected sample dataset')
 
 
 def run_upgrade(session):
