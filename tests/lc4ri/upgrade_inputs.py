@@ -7,7 +7,7 @@ import time
 import urllib.request
 
 import yaml
-from scenario import ADDRESSES, MIRROR
+from scenario import ADDRESSES, MIRROR, journals_have_written, upgrade_table_online
 
 
 def stream_output(observed):
@@ -20,6 +20,8 @@ def notebook_output(session):
 
 
 def enter_upgrade_inputs(session, controls, index, text):
+    if "echo 'status" in text:
+        controls.retryable_errors[index] = 'org.apache.hadoop.hbase.ipc.ServerNotRunningYetException: Server is not running yet'
     if text.startswith('active_namenode_host ='):
         output = notebook_output(session)
         roles = dict(re.findall(r'(nn[12]):\d+\s+(active|standby)', output))
@@ -109,5 +111,11 @@ def wait_for_upgrade_state(session, controls, index, text, observed):
                    for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks')))
     if 'hdfs haadmin -getServiceState ' in text:
         wait_until(lambda value: re.search(r'^standby\s*$', value, re.M))
+    if "echo 'status" in text:
+        wait_until(upgrade_table_online)
+    if 'NameNodeInfo::NameJournalStatus' in text:
+        roll = stream_output(controls.state(controls.find('hdfs dfsadmin -rollEdits')))
+        segment, = re.findall(r'New segment starts at txid (\d+)', roll)
+        wait_until(lambda value: journals_have_written(value, int(segment)))
     if 'NameNodeInfo' in text and session.current_notebook.startswith('O12j'):
         wait_until(lambda value: len(re.findall(r'"RollingUpgradeStatus"\s*:\s*null', value)) == 2)

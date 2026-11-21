@@ -114,6 +114,24 @@ def cell_outputs(notebook, fragment):
                     if output['output_type'] == 'stream') for cell in cells]
 
 
+def journals_have_written(status, segment_txid):
+    written = {address: int(txid) for address, txid in
+               re.findall(r'([\d.]+):\d+ \(Written txid (\d+)', status)}
+    return (written.keys() == set(ADDRESSES.values()) and
+            min(written.values()) >= segment_txid and 'will try to re-sync' not in status)
+
+
+def upgrade_table_online(status):
+    return re.search(r'^\s*"upgrade_check,[^"]+"\s*$', status, re.MULTILINE) is not None
+
+
+def check_journal_recovery(book):
+    roll, = cell_outputs(book, 'hdfs dfsadmin -rollEdits')
+    segment, = re.findall(r'New segment starts at txid (\d+)', roll)
+    status, = cell_outputs(book, 'NameNodeInfo::NameJournalStatus')
+    assert journals_have_written(status, int(segment)), (roll, status)
+
+
 def run_upgrade(session):
     from upgrade_inputs import enter_upgrade_inputs, wait_for_upgrade_state
     session.upgrade = {'prepared': False}
@@ -185,6 +203,7 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    check_journal_recovery(book)
     check_hdfs('O12h-nn1')
     session.upgrade_host = 'nn2'
     book = run_notebook('O12h_Hadoop - Upgrade Hadoop node.ipynb', before_cell=enter_upgrade_inputs, after_cell=wait_for_upgrade_state, execution_label='nn2')
@@ -193,6 +212,7 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    check_journal_recovery(book)
     check_hdfs('O12h-nn2')
     session.upgrade_host = 'dn1'
     book = run_notebook('O12h_Hadoop - Upgrade Hadoop node.ipynb', before_cell=enter_upgrade_inputs, after_cell=wait_for_upgrade_state, execution_label='dn1')
@@ -201,12 +221,15 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    check_journal_recovery(book)
     check_hdfs('O12h-dn1')
     book = run_notebook('O12i_Hadoop - Upgrade HBase and Spark.ipynb', before_cell=enter_upgrade_inputs, after_cell=wait_for_upgrade_state)
     outputs = cell_outputs(book, 'org.apache.hadoop.util.VersionInfo')
     assert len(outputs) == 2, outputs
     for output in outputs:
         assert 'Hadoop ' + session.upgrade['hadoop_version'] in output, output
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
@@ -247,10 +270,13 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
     assert 'Estimated value of Pi' in output, output
+    check_journal_recovery(book)
     check_hdfs('O12k-nn1')
     session.upgrade_host = 'nn2'
     book = run_notebook('O12k_Hadoop - Update platform packages.ipynb', before_cell=enter_upgrade_inputs, after_cell=wait_for_upgrade_state, execution_label='nn2')
@@ -259,10 +285,13 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
     assert 'Estimated value of Pi' in output, output
+    check_journal_recovery(book)
     check_hdfs('O12k-nn2')
     session.upgrade_host = 'dn1'
     book = run_notebook('O12k_Hadoop - Update platform packages.ipynb', before_cell=enter_upgrade_inputs, after_cell=wait_for_upgrade_state, execution_label='dn1')
@@ -271,10 +300,13 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
     assert 'Estimated value of Pi' in output, output
+    check_journal_recovery(book)
     check_hdfs('O12k-dn1')
     run_notebook('T12a_Hadoop - Confirm the services are alive - ZK,HDFS,YARN,HBase,Spark.ipynb', execution_label='upgraded')
     check_hdfs('T12a-upgraded')
