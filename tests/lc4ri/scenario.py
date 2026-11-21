@@ -121,6 +121,10 @@ def journals_have_written(status, segment_txid):
             min(written.values()) >= segment_txid and 'will try to re-sync' not in status)
 
 
+def upgrade_table_online(status):
+    return re.search(r'^\s*"upgrade_check,[^"]+"\s*$', status, re.MULTILINE) is not None
+
+
 def check_journal_recovery(book):
     roll, = cell_outputs(book, 'hdfs dfsadmin -rollEdits')
     segment, = re.findall(r'New segment starts at txid (\d+)', roll)
@@ -224,6 +228,8 @@ def run_upgrade(session):
     assert len(outputs) == 2, outputs
     for output in outputs:
         assert 'Hadoop ' + session.upgrade['hadoop_version'] in output, output
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
@@ -264,6 +270,8 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
@@ -277,6 +285,8 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')
@@ -290,6 +300,8 @@ def run_upgrade(session):
     assert 'Live datanodes (3):' in reports[-1], reports[-1]
     for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks'):
         assert re.search(r'^\s*' + label + r': 0\s*$', reports[-1], re.M), reports[-1]
+    status, = cell_outputs(book, "echo 'status")
+    assert upgrade_table_online(status), status
     output, = cell_outputs(book, '-n /tmp/hbase-upgrade-after.rb')
     assert 'preserved' in output and 'writable' in output and 'ERROR' not in output, output
     output, = cell_outputs(book, 'mapreduce-examples-*.jar pi')

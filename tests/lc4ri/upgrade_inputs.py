@@ -7,7 +7,7 @@ import time
 import urllib.request
 
 import yaml
-from scenario import ADDRESSES, MIRROR, journals_have_written
+from scenario import ADDRESSES, MIRROR, journals_have_written, upgrade_table_online
 
 
 def stream_output(observed):
@@ -109,6 +109,8 @@ def wait_for_upgrade_state(session, controls, index, text, observed):
                    for label in ('Missing blocks', 'Blocks with corrupt replicas', 'Under replicated blocks')))
     if 'hdfs haadmin -getServiceState ' in text:
         wait_until(lambda value: re.search(r'^standby\s*$', value, re.M))
+    if "echo 'status" in text:
+        wait_until(upgrade_table_online)
     if 'NameNodeInfo::NameJournalStatus' in text:
         roll = stream_output(controls.state(controls.find('hdfs dfsadmin -rollEdits')))
         segment, = re.findall(r'New segment starts at txid (\d+)', roll)
