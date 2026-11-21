@@ -1,2 +1,2 @@
 dependencies:
-  - {role: java11}
+  - {role: java}

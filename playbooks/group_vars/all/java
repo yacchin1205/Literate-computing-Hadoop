@@ -1,0 +1,2 @@
+java_version: 17
+java_home: "/usr/lib/jvm/java-{{ java_version }}-openjdk-amd64"

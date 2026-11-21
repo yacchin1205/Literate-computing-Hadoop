@@ -2,5 +2,5 @@
   become: yes
   apt:
     name:
-      - openjdk-11-jdk
+      - "openjdk-{{ java_version }}-jdk"
     state: present
