@@ -1,4 +1,5 @@
 """Operate JupyterLab notebook cells through the visible controls."""
+import time
 from types import SimpleNamespace
 
 
@@ -9,6 +10,7 @@ def source(cell):
 
 def operations(page, key, reference, records, timeout=120000):
     edits = {}
+    retryable_errors = {}
 
     def find(fragment):
         indices = [i for i, cell in enumerate(reference['cells'])
@@ -54,7 +56,7 @@ def operations(page, key, reference, records, timeout=120000):
         records.append(dict(notebook=key, cell=index, action='edit input', reason=reason,
                             before=before, after=text))
 
-    def run(index):
+    def execute(index):
         unfreeze(index)
         select(index)
         before = state(index)['count']
@@ -72,12 +74,22 @@ def operations(page, key, reference, records, timeout=120000):
         errors = [output for output in observed['outputs'] if output['output_type'] == 'error']
         records.append(dict(notebook=key, cell=index, action='Shift+Enter',
                             errors=errors, execution_count=observed['count']))
-        if errors:
-            for output in observed['outputs']:
-                if output['output_type'] == 'stream':
-                    print(output['text'], end='', flush=True)
-        assert not errors, errors
-        assert observed['frozen'] and observed['readOnly'], observed
-        return observed
+        return observed, errors
 
-    return SimpleNamespace(find=find, state=state, edit=edit, run=run, edits=edits)
+    def run(index):
+        deadline = time.monotonic() + 180
+        while True:
+            observed, errors = execute(index)
+            if not errors:
+                assert observed['frozen'] and observed['readOnly'], observed
+                return observed
+            output = ''.join(item['text'] for item in observed['outputs']
+                             if item['output_type'] == 'stream')
+            print(output, end='', flush=True)
+            retryable = retryable_errors.get(index)
+            if not retryable or retryable not in output or time.monotonic() >= deadline:
+                raise AssertionError(errors)
+            time.sleep(2)
+
+    return SimpleNamespace(find=find, state=state, edit=edit, run=run,
+                           edits=edits, retryable_errors=retryable_errors)

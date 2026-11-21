@@ -20,6 +20,8 @@ def notebook_output(session):
 
 
 def enter_upgrade_inputs(session, controls, index, text):
+    if "echo 'status" in text:
+        controls.retryable_errors[index] = 'org.apache.hadoop.hbase.ipc.ServerNotRunningYetException: Server is not running yet'
     if text.startswith('active_namenode_host ='):
         output = notebook_output(session)
         roles = dict(re.findall(r'(nn[12]):\d+\s+(active|standby)', output))
